@@ -58,12 +58,16 @@ func TestCompositeCollectorCancelsSiblingOnError(t *testing.T) {
 
 func TestCompositeCollectorCombinesChildStats(t *testing.T) {
 	composite := NewCompositeCollector(
-		statsCollector{stats: Stats{RingBufferDropped: 3}},
-		statsCollector{stats: Stats{RingBufferDropped: 5}},
+		statsCollector{stats: Stats{RingBufferDropped: 3, CorrelationDropped: 2}},
+		statsCollector{stats: Stats{RingBufferDropped: 5, CorrelationDropped: 4}},
 	)
 
-	if got := composite.Stats().RingBufferDropped; got != 8 {
+	stats := composite.Stats()
+	if got := stats.RingBufferDropped; got != 8 {
 		t.Fatalf("ring buffer dropped = %d, want 8", got)
+	}
+	if got := stats.CorrelationDropped; got != 6 {
+		t.Fatalf("correlation dropped = %d, want 6", got)
 	}
 }
 

@@ -14,7 +14,8 @@ type Collector interface {
 }
 
 type Stats struct {
-	RingBufferDropped uint64
+	RingBufferDropped  uint64
+	CorrelationDropped uint64
 }
 
 type StatsProvider interface {
@@ -33,7 +34,9 @@ func (collector *CompositeCollector) Stats() Stats {
 	var combined Stats
 	for _, child := range collector.collectors {
 		if provider, ok := child.(StatsProvider); ok {
-			combined.RingBufferDropped += provider.Stats().RingBufferDropped
+			stats := provider.Stats()
+			combined.RingBufferDropped += stats.RingBufferDropped
+			combined.CorrelationDropped += stats.CorrelationDropped
 		}
 	}
 	return combined

@@ -122,6 +122,47 @@ func TestBasicAnalyzeAdditionalRulesFixture(t *testing.T) {
 	}
 }
 
+func TestBasicAnalyzeIgnoresFailedAndEmptyMutations(t *testing.T) {
+	timestamp := time.Date(2026, time.June, 2, 12, 0, 0, 0, time.UTC)
+	normalizedEvents := []events.Event{
+		{
+			EventID:     "evt-failed-write",
+			Timestamp:   timestamp,
+			Host:        "devbox-01",
+			PID:         6001,
+			ProcessName: "sed",
+			EventType:   events.TypeFileWrite,
+			FilePath:    "/etc/shadow",
+			Metadata:    map[string]any{"outcome": "failed", "written_bytes": int64(0)},
+		},
+		{
+			EventID:     "evt-empty-write",
+			Timestamp:   timestamp.Add(time.Second),
+			Host:        "devbox-01",
+			PID:         6001,
+			ProcessName: "sed",
+			EventType:   events.TypeFileWrite,
+			FilePath:    "/etc/shadow",
+			Metadata:    map[string]any{"outcome": "success", "written_bytes": int64(0)},
+		},
+		{
+			EventID:     "evt-failed-chmod",
+			Timestamp:   timestamp.Add(2 * time.Second),
+			Host:        "devbox-01",
+			PID:         6002,
+			ProcessName: "chmod",
+			EventType:   events.TypeChmod,
+			FilePath:    "/tmp/payload",
+			Metadata:    map[string]any{"outcome": "failed", "added_execute_bit": true},
+		},
+	}
+
+	result := detect.NewBasic().Analyze(normalizedEvents)
+	if len(result.Signals) != 0 {
+		t.Fatalf("signals = %+v, want none for failed or empty mutations", result.Signals)
+	}
+}
+
 func TestRiskLevel(t *testing.T) {
 	tests := []struct {
 		score int

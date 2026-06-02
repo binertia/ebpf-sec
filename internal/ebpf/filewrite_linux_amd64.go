@@ -39,13 +39,15 @@ type FileWriteCollector struct {
 }
 
 type fileWriteRecord struct {
-	KernelTimestampNS uint64
-	PID               uint32
-	UID               uint32
-	Comm              [commSize]byte
-	FD                int32
-	Syscall           uint32
-	RequestedCount    uint64
+	KernelTimestampNS           uint64
+	CompletionKernelTimestampNS uint64
+	ReturnValue                 int64
+	PID                         uint32
+	UID                         uint32
+	Comm                        [commSize]byte
+	FD                          int32
+	Syscall                     uint32
+	RequestedCount              uint64
 }
 
 func NewFileWriteCollector() (*FileWriteCollector, error) {
@@ -56,8 +58,8 @@ func NewFileWriteCollector() (*FileWriteCollector, error) {
 	return &FileWriteCollector{host: host, procRoot: "/proc", containerCache: newContainerMetadataCache()}, nil
 }
 
-// Run emits path-backed file write attempts. Descriptors 0-2 and descriptors
-// that no longer resolve to filesystem paths are discarded in the hot path.
+// Run emits completed path-backed file writes. Descriptors 0-2 and descriptors
+// that no longer resolve to filesystem paths are discarded.
 func (collector *FileWriteCollector) Run(ctx context.Context, sink chan<- events.Event) error {
 	if sink == nil {
 		return errors.New("event sink is required")
@@ -74,6 +76,12 @@ func (collector *FileWriteCollector) Run(ctx context.Context, sink chan<- events
 	}
 	defer records.Close()
 
+	pending, err := newPendingSyscallMap("rg_wr_pending", binary.Size(fileWriteRecord{}))
+	if err != nil {
+		return fmt.Errorf("create pending file write map: %w", err)
+	}
+	defer pending.Close()
+
 	drops, err := newDropCounterMap("rg_write_drop")
 	if err != nil {
 		return fmt.Errorf("create file write drop counter: %w", err)
@@ -82,20 +90,43 @@ func (collector *FileWriteCollector) Run(ctx context.Context, sink chan<- events
 	collector.metrics.attachDropCounter(drops)
 	defer collector.metrics.detachDropCounter(drops)
 
-	program, err := cebpf.NewProgram(fileWriteProgramSpec(records.FD(), drops.FD()))
+	correlationDrops, err := newDropCounterMap("rg_wr_corr_drop")
 	if err != nil {
-		return fmt.Errorf("load file write raw tracepoint program: %w", err)
+		return fmt.Errorf("create file write correlation drop counter: %w", err)
 	}
-	defer program.Close()
+	defer correlationDrops.Close()
+	collector.metrics.attachCorrelationDropCounter(correlationDrops)
+	defer collector.metrics.detachCorrelationDropCounter(correlationDrops)
 
-	hook, err := link.AttachRawTracepoint(link.RawTracepointOptions{
+	enterProgram, err := cebpf.NewProgram(fileWriteEnterProgramSpec(pending.FD(), correlationDrops.FD()))
+	if err != nil {
+		return fmt.Errorf("load file write sys_enter raw tracepoint program: %w", err)
+	}
+	defer enterProgram.Close()
+
+	enterHook, err := link.AttachRawTracepoint(link.RawTracepointOptions{
 		Name:    "sys_enter",
-		Program: program,
+		Program: enterProgram,
 	})
 	if err != nil {
 		return fmt.Errorf("attach sys_enter raw tracepoint: %w", err)
 	}
-	defer hook.Close()
+	defer enterHook.Close()
+
+	exitProgram, err := cebpf.NewProgram(fileWriteExitProgramSpec(records.FD(), drops.FD(), pending.FD()))
+	if err != nil {
+		return fmt.Errorf("load file write sys_exit raw tracepoint program: %w", err)
+	}
+	defer exitProgram.Close()
+
+	exitHook, err := link.AttachRawTracepoint(link.RawTracepointOptions{
+		Name:    "sys_exit",
+		Program: exitProgram,
+	})
+	if err != nil {
+		return fmt.Errorf("attach sys_exit raw tracepoint: %w", err)
+	}
+	defer exitHook.Close()
 
 	reader, err := ringbuf.NewReader(records)
 	if err != nil {
@@ -143,15 +174,19 @@ func (collector *FileWriteCollector) Stats() Stats {
 	return collector.metrics.stats()
 }
 
-func fileWriteProgramSpec(ringBufferFD, dropCounterFD int) *cebpf.ProgramSpec {
+func fileWriteEnterProgramSpec(pendingFD, correlationDropCounterFD int) *cebpf.ProgramSpec {
 	const (
-		fdOffset      = int16(32)
-		syscallOffset = int16(36)
-		countOffset   = int16(40)
+		pidOffset     = int16(24)
+		uidOffset     = int16(28)
+		commOffset    = int16(32)
+		fdOffset      = int16(48)
+		syscallOffset = int16(52)
+		countOffset   = int16(56)
 	)
 	recordSize := int16(binary.Size(fileWriteRecord{}))
 	recordStart := -recordSize
-	tempValue := recordStart - 8
+	keyOffset := recordStart - 8
+	tempValue := keyOffset - 8
 
 	instructions := asm.Instructions{
 		asm.Mov.Reg(asm.R6, asm.R1),
@@ -175,14 +210,15 @@ func fileWriteProgramSpec(ringBufferFD, dropCounterFD int) *cebpf.ProgramSpec {
 		asm.StoreMem(asm.RFP, recordStart, asm.R0, asm.DWord),
 
 		asm.FnGetCurrentPidTgid.Call(),
+		asm.StoreMem(asm.RFP, keyOffset, asm.R0, asm.DWord),
 		asm.RSh.Imm(asm.R0, 32),
-		asm.StoreMem(asm.RFP, recordStart+8, asm.R0, asm.Word),
+		asm.StoreMem(asm.RFP, recordStart+pidOffset, asm.R0, asm.Word),
 
 		asm.FnGetCurrentUidGid.Call(),
-		asm.StoreMem(asm.RFP, recordStart+12, asm.R0, asm.Word),
+		asm.StoreMem(asm.RFP, recordStart+uidOffset, asm.R0, asm.Word),
 
 		asm.Mov.Reg(asm.R1, asm.RFP),
-		asm.Add.Imm(asm.R1, int32(recordStart+16)),
+		asm.Add.Imm(asm.R1, int32(recordStart+commOffset)),
 		asm.Mov.Imm(asm.R2, commSize),
 		asm.FnGetCurrentComm.Call(),
 	)
@@ -197,25 +233,36 @@ func fileWriteProgramSpec(ringBufferFD, dropCounterFD int) *cebpf.ProgramSpec {
 		readRegisterArgument(asm.R6, ptRegsDXOffset, asm.RFP, tempValue, recordStart+countOffset, asm.DWord)...,
 	)
 	instructions = append(instructions,
-		asm.LoadMapPtr(asm.R1, ringBufferFD),
-		asm.Mov.Reg(asm.R2, asm.RFP),
-		asm.Add.Imm(asm.R2, int32(recordStart)),
-		asm.Mov.Imm(asm.R3, int32(recordSize)),
-		asm.Mov.Imm(asm.R4, 0),
-		asm.FnRingbufOutput.Call(),
+		storePendingSyscall(pendingFD, keyOffset, recordStart)...,
 	)
-	instructions = append(instructions, countRingBufferDrop(dropCounterFD, tempValue)...)
+	instructions = append(instructions, countCorrelationDrop(correlationDropCounterFD, tempValue)...)
 	instructions = append(instructions,
 		asm.Mov.Imm(asm.R0, 0).WithSymbol("exit"),
 		asm.Return(),
 	)
 
 	return &cebpf.ProgramSpec{
-		Name:         "rg_file_write",
+		Name:         "rg_write_enter",
 		Type:         cebpf.RawTracepoint,
 		License:      "GPL",
 		Instructions: instructions,
 	}
+}
+
+func fileWriteExitProgramSpec(ringBufferFD, dropCounterFD, pendingFD int) *cebpf.ProgramSpec {
+	const (
+		completionTimestampOffset = int16(8)
+		returnValueOffset         = int16(16)
+	)
+	return completedSyscallProgramSpec(
+		"rg_write_exit",
+		ringBufferFD,
+		dropCounterFD,
+		pendingFD,
+		int16(binary.Size(fileWriteRecord{})),
+		completionTimestampOffset,
+		returnValueOffset,
+	)
 }
 
 func decodeFileWriteRecord(raw []byte) (fileWriteRecord, error) {
@@ -258,17 +305,28 @@ func (collector *FileWriteCollector) normalize(raw fileWriteRecord) (events.Even
 		CWD:               readProcCWD(collector.procRoot, pid),
 		FilePath:          path,
 		Metadata: map[string]any{
-			"source":              "ebpf_raw_tracepoint_sys_enter",
-			"kernel_timestamp_ns": raw.KernelTimestampNS,
-			"syscall":             fileWriteSyscallName(raw.Syscall),
-			"fd":                  raw.FD,
-			"requested_count":     raw.RequestedCount,
-			"count_kind":          fileWriteCountKind(raw.Syscall),
-			"outcome":             "attempt",
+			"source":                         "ebpf_raw_tracepoint_sys_exit",
+			"kernel_timestamp_ns":            raw.KernelTimestampNS,
+			"completion_kernel_timestamp_ns": raw.CompletionKernelTimestampNS,
+			"syscall":                        fileWriteSyscallName(raw.Syscall),
+			"fd":                             raw.FD,
+			"requested_count":                raw.RequestedCount,
+			"count_kind":                     fileWriteCountKind(raw.Syscall),
+			"return_value":                   raw.ReturnValue,
+			"written_bytes":                  writtenBytes(raw.ReturnValue),
+			"errno":                          syscallErrno(raw.ReturnValue),
+			"outcome":                        syscallOutcome(raw.ReturnValue),
 		},
 	}
 	enrichContainerMetadata(&event, collector.procRoot, pid, collector.containerCache)
 	return event, true
+}
+
+func writtenBytes(returnValue int64) int64 {
+	if returnValue < 0 {
+		return 0
+	}
+	return returnValue
 }
 
 func fileWriteSyscallName(number uint32) string {

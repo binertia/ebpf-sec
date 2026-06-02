@@ -11,9 +11,11 @@ import (
 )
 
 type collectorMetrics struct {
-	mu                sync.RWMutex
-	dropCounter       *cebpf.Map
-	ringBufferDropped atomic.Uint64
+	mu                     sync.RWMutex
+	dropCounter            *cebpf.Map
+	correlationDropCounter *cebpf.Map
+	ringBufferDropped      atomic.Uint64
+	correlationDropped     atomic.Uint64
 }
 
 func newDropCounterMap(name string) (*cebpf.Map, error) {
@@ -42,20 +44,44 @@ func (metrics *collectorMetrics) detachDropCounter(counter *cebpf.Map) {
 	metrics.dropCounter = nil
 }
 
+func (metrics *collectorMetrics) attachCorrelationDropCounter(counter *cebpf.Map) {
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
+	metrics.correlationDropCounter = counter
+}
+
+func (metrics *collectorMetrics) detachCorrelationDropCounter(counter *cebpf.Map) {
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
+	if metrics.correlationDropCounter != counter {
+		return
+	}
+	metrics.refreshLocked()
+	metrics.correlationDropCounter = nil
+}
+
 func (metrics *collectorMetrics) stats() Stats {
 	metrics.mu.Lock()
 	defer metrics.mu.Unlock()
 	metrics.refreshLocked()
-	return Stats{RingBufferDropped: metrics.ringBufferDropped.Load()}
+	return Stats{
+		RingBufferDropped:  metrics.ringBufferDropped.Load(),
+		CorrelationDropped: metrics.correlationDropped.Load(),
+	}
 }
 
 func (metrics *collectorMetrics) refreshLocked() {
-	if metrics.dropCounter == nil {
-		return
+	if metrics.dropCounter != nil {
+		var dropped uint64
+		if err := metrics.dropCounter.Lookup(uint32(0), &dropped); err == nil {
+			metrics.ringBufferDropped.Store(dropped)
+		}
 	}
-	var dropped uint64
-	if err := metrics.dropCounter.Lookup(uint32(0), &dropped); err == nil {
-		metrics.ringBufferDropped.Store(dropped)
+	if metrics.correlationDropCounter != nil {
+		var dropped uint64
+		if err := metrics.correlationDropCounter.Lookup(uint32(0), &dropped); err == nil {
+			metrics.correlationDropped.Store(dropped)
+		}
 	}
 }
 
@@ -71,4 +97,8 @@ func countRingBufferDrop(dropCounterFD int, keyOffset int16) asm.Instructions {
 		asm.Mov.Imm(asm.R1, 1),
 		asm.StoreXAdd(asm.R0, asm.R1, asm.DWord),
 	}
+}
+
+func countCorrelationDrop(dropCounterFD int, keyOffset int16) asm.Instructions {
+	return countRingBufferDrop(dropCounterFD, keyOffset)
 }

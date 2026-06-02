@@ -89,6 +89,9 @@ func (Basic) Analyze(normalizedEvents []events.Event) Result {
 					fmt.Sprintf("%s executed network utility %s", event.ParentProcessName, event.ProcessName)))
 			}
 		case events.TypeFileWrite:
+			if !fileWriteChanged(event) {
+				continue
+			}
 			if downloadEvent, found := downloadProcesses[event.PID]; found && event.FilePath != "" {
 				downloadedFiles[event.FilePath] = []events.Event{downloadEvent, event}
 			}
@@ -98,7 +101,7 @@ func (Basic) Analyze(normalizedEvents []events.Event) Result {
 				sensitiveFiles[event.FilePath] = true
 			}
 		case events.TypeChmod:
-			if isTempPath(event.FilePath) && metadataBool(event, "added_execute_bit") {
+			if mutationSucceeded(event) && isTempPath(event.FilePath) && metadataBool(event, "added_execute_bit") {
 				result.add(signal("tmp_file_made_executable", 20, []events.Event{event},
 					fmt.Sprintf("%s made %s executable", event.ProcessName, event.FilePath)))
 			}
@@ -283,4 +286,29 @@ func isTempPath(path string) bool {
 func metadataBool(event events.Event, key string) bool {
 	value, ok := event.Metadata[key].(bool)
 	return ok && value
+}
+
+func mutationSucceeded(event events.Event) bool {
+	outcome, _ := event.Metadata["outcome"].(string)
+	return outcome != "failed"
+}
+
+func fileWriteChanged(event events.Event) bool {
+	if !mutationSucceeded(event) {
+		return false
+	}
+	value, found := event.Metadata["written_bytes"]
+	if !found {
+		return true
+	}
+	switch count := value.(type) {
+	case int:
+		return count > 0
+	case int64:
+		return count > 0
+	case float64:
+		return count > 0
+	default:
+		return false
+	}
 }

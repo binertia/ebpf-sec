@@ -40,7 +40,7 @@ func (statsRuntimeCollector) Run(context.Context, chan<- events.Event) error {
 }
 
 func (statsRuntimeCollector) Stats() sensor.Stats {
-	return sensor.Stats{RingBufferDropped: 7}
+	return sensor.Stats{RingBufferDropped: 7, CorrelationDropped: 3}
 }
 
 func TestWriteLiveStats(t *testing.T) {
@@ -67,6 +67,7 @@ func TestWriteLiveStats(t *testing.T) {
 		"analyzed=1",
 		"incidents=0",
 		"ring_dropped=7",
+		"correlation_dropped=3",
 	} {
 		if !strings.Contains(output.String(), expected) {
 			t.Fatalf("output = %q, want substring %q", output.String(), expected)

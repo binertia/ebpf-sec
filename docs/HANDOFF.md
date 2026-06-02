@@ -37,8 +37,10 @@ Implemented live Linux amd64 collectors:
 - path-backed `write`, `writev`, `pwrite64`, `pwritev`, and `pwritev2`
 - `chmod`, `fchmod`, `fchmodat`, and `fchmodat2`
 
-File write and chmod records currently represent syscall-entry **attempts**.
-Successful completion tracking remains a later hardening step.
+File write and chmod probes correlate syscall entry and exit with bounded
+in-kernel maps. Emitted records include the syscall return value, errno, and a
+`success` or `failed` outcome. A requested chmod execute bit does not prove
+that the bit was newly added.
 
 Implemented deterministic rules:
 
@@ -73,8 +75,8 @@ Implemented deterministic rules:
 - Incident storage upserts its supporting evidence rows and incident links in
   one transaction, independent of async event-queue timing.
 - The live CLI reports normalized, grouped, analyzed, incident, kernel
-  ring-buffer-drop, and event-persistence counters every 10 seconds and at
-  shutdown.
+  ring-buffer-drop, syscall-correlation-drop, and event-persistence counters
+  every 10 seconds and at shutdown.
 - The MVP never automatically kills, blocks, or remediates processes.
 
 ## Known Limitations
@@ -86,6 +88,8 @@ Implemented deterministic rules:
   hostname data when available. This is a bounded PID/start-time cache; the
   hostname is not guaranteed to match the container-runtime display name.
 - IPv6 connection capture is not implemented.
+- Root-only smoke tests passed before syscall-exit correlation was added. Rerun
+  them on a capable Linux amd64 host to validate the updated probes.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 
@@ -140,8 +144,8 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 
 ## Recommended Next Task
 
-Track syscall exits for file writes and chmod operations so incidents can
-distinguish attempted actions from successful changes.
+Rerun root-only eBPF smoke tests on a capable Linux amd64 host to validate the
+new file-write and chmod syscall-exit correlation probes.
 
 ## File Map
 

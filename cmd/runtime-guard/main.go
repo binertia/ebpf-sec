@@ -259,9 +259,9 @@ func writeLiveStats(out io.Writer, collector sensor.Collector, processor *pipeli
 	if eventQueue != nil {
 		queueStats = eventQueue.Stats()
 	}
-	fmt.Fprintf(out, "runtime stats: normalized=%d grouped=%d analyzed=%d incidents=%d ring_dropped=%d persist_received=%d persist_enqueued=%d persisted=%d persist_dropped=%d\n",
+	fmt.Fprintf(out, "runtime stats: normalized=%d grouped=%d analyzed=%d incidents=%d ring_dropped=%d correlation_dropped=%d persist_received=%d persist_enqueued=%d persisted=%d persist_dropped=%d\n",
 		normalizedEvents, pipelineStats.GroupedCandidates, pipelineStats.AnalyzedCandidates,
-		pipelineStats.Incidents, collectorStats.RingBufferDropped, queueStats.Received,
+		pipelineStats.Incidents, collectorStats.RingBufferDropped, collectorStats.CorrelationDropped, queueStats.Received,
 		queueStats.Enqueued, queueStats.Persisted, queueStats.Dropped)
 }
 

@@ -89,3 +89,52 @@ func TestCompressCollapsesRepeatedFileWrites(t *testing.T) {
 		t.Fatalf("timeline entry count = %d, want 6", len(incident.Timeline))
 	}
 }
+
+func TestCompressNarratesFailedMutationsAsFailures(t *testing.T) {
+	timestamp := time.Date(2026, time.June, 2, 12, 0, 0, 0, time.UTC)
+	normalizedEvents := []events.Event{
+		{
+			EventID:     "evt-failed-write",
+			Timestamp:   timestamp,
+			Host:        "devbox-01",
+			PID:         6001,
+			ProcessName: "curl",
+			EventType:   events.TypeFileWrite,
+			FilePath:    "/tmp/payload",
+			Metadata:    map[string]any{"outcome": "failed"},
+		},
+		{
+			EventID:     "evt-failed-chmod",
+			Timestamp:   timestamp.Add(time.Second),
+			Host:        "devbox-01",
+			PID:         6002,
+			ProcessName: "chmod",
+			EventType:   events.TypeChmod,
+			FilePath:    "/tmp/payload",
+			Metadata:    map[string]any{"outcome": "failed"},
+		},
+		{
+			EventID:     "evt-empty-write",
+			Timestamp:   timestamp.Add(2 * time.Second),
+			Host:        "devbox-01",
+			PID:         6001,
+			ProcessName: "curl",
+			EventType:   events.TypeFileWrite,
+			FilePath:    "/tmp/payload",
+			Metadata:    map[string]any{"outcome": "success", "written_bytes": int64(0)},
+		},
+	}
+
+	incident, err := compress.NewBasic().Compress(normalizedEvents, detect.Result{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"curl failed to write /tmp/payload",
+		"chmod failed to make /tmp/payload executable",
+		"curl completed zero-byte write to /tmp/payload",
+	}
+	if !slices.Equal(incident.Timeline, want) {
+		t.Fatalf("timeline = %v, want %v", incident.Timeline, want)
+	}
+}

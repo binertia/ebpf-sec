@@ -98,7 +98,7 @@ func timeline(normalizedEvents []events.Event) []string {
 	writeCounts := make(map[fileWriteKey]int)
 	emittedWrites := make(map[fileWriteKey]bool)
 	for _, event := range normalizedEvents {
-		if event.EventType == events.TypeFileWrite {
+		if event.EventType == events.TypeFileWrite && fileWriteChanged(event) {
 			writeCounts[fileWriteKey{PID: event.PID, Path: event.FilePath}]++
 		}
 	}
@@ -116,8 +116,20 @@ func timeline(normalizedEvents []events.Event) []string {
 				entries = append(entries, fmt.Sprintf("%s executed", displayExecutable(event)))
 			}
 		case events.TypeChmod:
+			if !mutationSucceeded(event) {
+				entries = append(entries, fmt.Sprintf("%s failed to make %s executable", event.ProcessName, event.FilePath))
+				continue
+			}
 			entries = append(entries, fmt.Sprintf("%s made %s executable", event.ProcessName, event.FilePath))
 		case events.TypeFileWrite:
+			if !mutationSucceeded(event) {
+				entries = append(entries, fmt.Sprintf("%s failed to write %s", event.ProcessName, event.FilePath))
+				continue
+			}
+			if !fileWriteChanged(event) {
+				entries = append(entries, fmt.Sprintf("%s completed zero-byte write to %s", event.ProcessName, event.FilePath))
+				continue
+			}
 			key := fileWriteKey{PID: event.PID, Path: event.FilePath}
 			if emittedWrites[key] {
 				continue
@@ -203,4 +215,29 @@ func downloadOutput(commandLine []string) string {
 		}
 	}
 	return "a file"
+}
+
+func mutationSucceeded(event events.Event) bool {
+	outcome, _ := event.Metadata["outcome"].(string)
+	return outcome != "failed"
+}
+
+func fileWriteChanged(event events.Event) bool {
+	if !mutationSucceeded(event) {
+		return false
+	}
+	value, found := event.Metadata["written_bytes"]
+	if !found {
+		return true
+	}
+	switch count := value.(type) {
+	case int:
+		return count > 0
+	case int64:
+		return count > 0
+	case float64:
+		return count > 0
+	default:
+		return false
+	}
 }

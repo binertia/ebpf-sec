@@ -22,7 +22,14 @@ func TestNormalizeChmodRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	raw := chmodRecord{KernelTimestampNS: 123456, PID: 4112, UID: 33, Mode: 0o755, Syscall: chmodSyscallNumber}
+	raw := chmodRecord{
+		KernelTimestampNS:           123456,
+		CompletionKernelTimestampNS: 123789,
+		PID:                         4112,
+		UID:                         33,
+		Mode:                        0o755,
+		Syscall:                     chmodSyscallNumber,
+	}
 	copy(raw.Comm[:], "sh")
 	copy(raw.FilePath[:], "/tmp/payload")
 
@@ -43,6 +50,26 @@ func TestNormalizeChmodRecord(t *testing.T) {
 	}
 	if got := event.Metadata["syscall"]; got != "chmod" {
 		t.Fatalf("syscall = %#v, want chmod", got)
+	}
+	if got := event.Metadata["outcome"]; got != "success" {
+		t.Fatalf("outcome = %#v, want success", got)
+	}
+}
+
+func TestNormalizeChmodRecordIncludesFailure(t *testing.T) {
+	raw := chmodRecord{PID: 4112, Mode: 0o755, Syscall: chmodSyscallNumber, ReturnValue: -1}
+	copy(raw.FilePath[:], "/tmp/payload")
+
+	collector := &ChmodCollector{host: "devbox-01", procRoot: t.TempDir()}
+	event, ok := collector.normalize(raw)
+	if !ok {
+		t.Fatal("expected failed chmod event to be normalized")
+	}
+	if got := event.Metadata["outcome"]; got != "failed" {
+		t.Fatalf("outcome = %#v, want failed", got)
+	}
+	if got := event.Metadata["errno"]; got != int64(1) {
+		t.Fatalf("errno = %#v, want int64(1)", got)
 	}
 }
 

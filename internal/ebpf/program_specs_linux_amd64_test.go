@@ -12,10 +12,12 @@ import (
 
 func TestProgramSpecsMarshal(t *testing.T) {
 	specs := map[string]*ebpf.ProgramSpec{
-		"execve":     execveProgramSpec(1, 2),
-		"connect":    connectProgramSpec(1, 2),
-		"file_write": fileWriteProgramSpec(1, 2),
-		"chmod":      chmodProgramSpec(1, 2),
+		"execve":           execveProgramSpec(1, 2),
+		"connect":          connectProgramSpec(1, 2),
+		"file_write_enter": fileWriteEnterProgramSpec(3, 4),
+		"file_write_exit":  fileWriteExitProgramSpec(1, 2, 3),
+		"chmod_enter":      chmodEnterProgramSpec(3, 4),
+		"chmod_exit":       chmodExitProgramSpec(1, 2, 3),
 	}
 	for name, spec := range specs {
 		t.Run(name, func(t *testing.T) {

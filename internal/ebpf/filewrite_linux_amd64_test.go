@@ -26,12 +26,14 @@ func TestNormalizeFileWriteRecord(t *testing.T) {
 	}
 
 	raw := fileWriteRecord{
-		KernelTimestampNS: 123456,
-		PID:               4120,
-		UID:               33,
-		FD:                8,
-		Syscall:           writeSyscallNumber,
-		RequestedCount:    512,
+		KernelTimestampNS:           123456,
+		CompletionKernelTimestampNS: 123789,
+		ReturnValue:                 512,
+		PID:                         4120,
+		UID:                         33,
+		FD:                          8,
+		Syscall:                     writeSyscallNumber,
+		RequestedCount:              512,
 	}
 	copy(raw.Comm[:], "curl")
 
@@ -52,6 +54,37 @@ func TestNormalizeFileWriteRecord(t *testing.T) {
 	}
 	if got := event.Metadata["count_kind"]; got != "bytes" {
 		t.Fatalf("count kind = %#v, want bytes", got)
+	}
+	if got := event.Metadata["outcome"]; got != "success" {
+		t.Fatalf("outcome = %#v, want success", got)
+	}
+	if got := event.Metadata["written_bytes"]; got != int64(512) {
+		t.Fatalf("written bytes = %#v, want int64(512)", got)
+	}
+}
+
+func TestNormalizeFileWriteRecordIncludesFailure(t *testing.T) {
+	procRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(procRoot, "4120/fd"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/tmp/payload", filepath.Join(procRoot, "4120/fd/8")); err != nil {
+		t.Fatal(err)
+	}
+
+	collector := &FileWriteCollector{host: "devbox-01", procRoot: procRoot}
+	event, ok := collector.normalize(fileWriteRecord{PID: 4120, FD: 8, ReturnValue: -13})
+	if !ok {
+		t.Fatal("expected failed file write event to be normalized")
+	}
+	if got := event.Metadata["outcome"]; got != "failed" {
+		t.Fatalf("outcome = %#v, want failed", got)
+	}
+	if got := event.Metadata["errno"]; got != int64(13) {
+		t.Fatalf("errno = %#v, want int64(13)", got)
+	}
+	if got := event.Metadata["written_bytes"]; got != int64(0) {
+		t.Fatalf("written bytes = %#v, want int64(0)", got)
 	}
 }
 

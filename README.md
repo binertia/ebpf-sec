@@ -11,7 +11,7 @@ go test ./...
 ```
 
 On Linux amd64, the live sensor streams normalized `execve`, IPv4 `connect`,
-path-backed file write, and `chmod` attempt events as JSON. It uses raw
+path-backed file write, and `chmod` events as JSON. It uses raw
 tracepoints and requires root or equivalent eBPF capabilities:
 
 ```sh
@@ -20,8 +20,10 @@ sudo go test -tags=ebpf_smoke ./internal/ebpf -run 'Test(Execve|Connect|FileWrit
 ```
 
 The live collectors are assembled in Go, so they do not require `clang`. IPv6
-collection is pending. File write and `chmod` events represent syscall-entry
-attempts; successful completion tracking is a later hardening step.
+collection is pending. File write and `chmod` probes correlate syscall entry
+and exit with bounded in-kernel maps, then report `success` or `failed`
+outcomes. A requested chmod execute bit does not prove that the bit was newly
+added.
 
 Persist the fake pipeline to a local SQLite database and inspect the result:
 
@@ -46,8 +48,8 @@ processor groups live process trees and flushes inactive candidates into
 deterministic incidents. Tune its default 15-second inactivity threshold with
 `--flush-after`. Active candidates retain at most 4096 recent events each and
 65536 events in total. Compressed incident reports expose dropped older events.
-Live collection prints ingestion, analysis, persistence, and kernel ring-buffer
-drop counters every 10 seconds and at shutdown.
+Live collection prints ingestion, analysis, persistence, kernel ring-buffer
+drop, and syscall-correlation-drop counters every 10 seconds and at shutdown.
 
 Analyze a stored incident with a local `llama-server`-compatible HTTP endpoint:
 

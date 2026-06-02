@@ -42,7 +42,7 @@ func TestFileWriteCollectorSmoke(t *testing.T) {
 	for {
 		select {
 		case event := <-sink:
-			if event.FilePath == path {
+			if event.FilePath == path && event.Metadata["outcome"] == "success" {
 				cancel()
 				return
 			}

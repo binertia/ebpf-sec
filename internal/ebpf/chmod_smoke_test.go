@@ -39,7 +39,9 @@ func TestChmodCollectorSmoke(t *testing.T) {
 	for {
 		select {
 		case event := <-sink:
-			if event.FilePath == path && event.Metadata["added_execute_bit"] == true {
+			if event.FilePath == path &&
+				event.Metadata["added_execute_bit"] == true &&
+				event.Metadata["outcome"] == "success" {
 				cancel()
 				return
 			}
