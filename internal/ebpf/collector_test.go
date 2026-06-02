@@ -1,0 +1,86 @@
+package ebpf
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"runtime-guard/internal/events"
+)
+
+func TestCompositeCollectorForwardsChildEvents(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	composite := NewCompositeCollector(
+		collectorFunc(func(ctx context.Context, sink chan<- events.Event) error {
+			select {
+			case sink <- events.Event{EventID: "evt-001"}:
+				return nil
+			case <-ctx.Done():
+				return nil
+			}
+		}),
+	)
+	sink := make(chan events.Event, 1)
+	if err := composite.Run(ctx, sink); err != nil {
+		t.Fatal(err)
+	}
+	if event := <-sink; event.EventID != "evt-001" {
+		t.Fatalf("event ID = %q, want evt-001", event.EventID)
+	}
+}
+
+func TestCompositeCollectorCancelsSiblingOnError(t *testing.T) {
+	want := errors.New("collector failed")
+	siblingCanceled := make(chan struct{})
+	composite := NewCompositeCollector(
+		collectorFunc(func(context.Context, chan<- events.Event) error {
+			return want
+		}),
+		collectorFunc(func(ctx context.Context, _ chan<- events.Event) error {
+			<-ctx.Done()
+			close(siblingCanceled)
+			return nil
+		}),
+	)
+
+	if err := composite.Run(context.Background(), make(chan events.Event)); !errors.Is(err, want) {
+		t.Fatalf("error = %v, want %v", err, want)
+	}
+	select {
+	case <-siblingCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("sibling collector was not canceled")
+	}
+}
+
+func TestCompositeCollectorCombinesChildStats(t *testing.T) {
+	composite := NewCompositeCollector(
+		statsCollector{stats: Stats{RingBufferDropped: 3}},
+		statsCollector{stats: Stats{RingBufferDropped: 5}},
+	)
+
+	if got := composite.Stats().RingBufferDropped; got != 8 {
+		t.Fatalf("ring buffer dropped = %d, want 8", got)
+	}
+}
+
+type collectorFunc func(ctx context.Context, sink chan<- events.Event) error
+
+func (function collectorFunc) Run(ctx context.Context, sink chan<- events.Event) error {
+	return function(ctx, sink)
+}
+
+type statsCollector struct {
+	stats Stats
+}
+
+func (statsCollector) Run(context.Context, chan<- events.Event) error {
+	return nil
+}
+
+func (collector statsCollector) Stats() Stats {
+	return collector.stats
+}

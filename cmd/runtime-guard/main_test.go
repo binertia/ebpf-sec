@@ -1,0 +1,169 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"runtime-guard/internal/compress"
+	sensor "runtime-guard/internal/ebpf"
+	"runtime-guard/internal/events"
+	"runtime-guard/internal/llm"
+	"runtime-guard/internal/store"
+)
+
+type stubLLMClient struct{}
+
+func (stubLLMClient) Analyze(context.Context, compress.Incident) (llm.Analysis, error) {
+	return llm.Analysis{
+		Model: "test-model",
+		Report: llm.Report{
+			Summary:                    "Likely payload execution chain.",
+			RiskLevel:                  "high",
+			LikelyBehavior:             "Possible web application compromise.",
+			WhySuspicious:              []string{"A downloaded binary connected outbound."},
+			FalsePositivePossibilities: []string{"Authorized security test."},
+			RecommendedCommands:        []string{"ps -fp 4131"},
+			ContainmentAdvice:          []string{"Review the process before taking manual action."},
+		},
+	}, nil
+}
+
+type statsRuntimeCollector struct{}
+
+func (statsRuntimeCollector) Run(context.Context, chan<- events.Event) error {
+	return nil
+}
+
+func (statsRuntimeCollector) Stats() sensor.Stats {
+	return sensor.Stats{RingBufferDropped: 7}
+}
+
+func TestWriteLiveStats(t *testing.T) {
+	processor := newProcessor(time.Second)
+	if _, err := processor.Add(events.Event{
+		EventID:     "evt-benign",
+		Timestamp:   time.Date(2026, time.June, 3, 12, 0, 0, 0, time.UTC),
+		Host:        "devbox-01",
+		PID:         100,
+		ProcessName: "true",
+		EventType:   events.TypeExecve,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := processor.Drain(); err != nil {
+		t.Fatal(err)
+	}
+
+	var output bytes.Buffer
+	writeLiveStats(&output, statsRuntimeCollector{}, processor, nil, 1)
+	for _, expected := range []string{
+		"normalized=1",
+		"grouped=1",
+		"analyzed=1",
+		"incidents=0",
+		"ring_dropped=7",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Fatalf("output = %q, want substring %q", output.String(), expected)
+		}
+	}
+}
+
+func TestRunLLMAnalyzesStoredIncident(t *testing.T) {
+	databaseDirectory := t.TempDir()
+	if err := os.Chmod(databaseDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	databasePath := filepath.Join(databaseDirectory, "runtime-guard.db")
+	if err := run([]string{
+		"demo",
+		"--db", databasePath,
+		"../../testdata/events/web-download-execute-connect.json",
+	}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	var deterministicOutput bytes.Buffer
+	if err := run([]string{
+		"show",
+		"--db", databasePath,
+		"inc-evt-001",
+	}, &deterministicOutput); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(deterministicOutput.String(), "LLM ANALYSIS") {
+		t.Fatalf("output = %q, want deterministic report only before LLM analysis", deterministicOutput.String())
+	}
+
+	previousFactory := newLLMClient
+	newLLMClient = func(llm.HTTPConfig) (llm.Client, error) {
+		return stubLLMClient{}, nil
+	}
+	defer func() {
+		newLLMClient = previousFactory
+	}()
+
+	var output bytes.Buffer
+	if err := run([]string{
+		"llm",
+		"--db", databasePath,
+		"--endpoint", "http://127.0.0.1:8080",
+		"--model", "test-model",
+		"inc-evt-001",
+	}, &output); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, expected := range []string{
+		"LLM ANALYSIS inc-evt-001",
+		"deterministic risk: critical (score=100)",
+		"llm risk: high (disagrees with deterministic score)",
+		"Possible web application compromise.",
+		"ps -fp 4131",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Fatalf("output = %q, want substring %q", output.String(), expected)
+		}
+	}
+
+	database, err := store.OpenSQLite(databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	stored, err := database.GetLLMReport(context.Background(), "inc-evt-001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Model != "test-model" {
+		t.Fatalf("stored model = %q, want test-model", stored.Model)
+	}
+	if stored.RawResponse != "" {
+		t.Fatalf("stored raw response = %q, want empty by default", stored.RawResponse)
+	}
+
+	var showOutput bytes.Buffer
+	if err := run([]string{
+		"show",
+		"--db", databasePath,
+		"inc-evt-001",
+	}, &showOutput); err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"INCIDENT inc-evt-001",
+		"Evidence events: 5",
+		"LLM ANALYSIS inc-evt-001",
+		"llm risk: high (disagrees with deterministic score)",
+		"ps -fp 4131",
+	} {
+		if !strings.Contains(showOutput.String(), expected) {
+			t.Fatalf("output = %q, want substring %q", showOutput.String(), expected)
+		}
+	}
+}
