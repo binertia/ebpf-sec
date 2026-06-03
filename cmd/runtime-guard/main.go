@@ -148,8 +148,9 @@ func runLive(args []string, out io.Writer) (err error) {
 	flags.SetOutput(io.Discard)
 	databasePath := flags.String("db", "", "persist normalized events to a SQLite database")
 	flushAfter := flags.Duration("flush-after", pipeline.DefaultInactivityTimeout, "flush inactive process trees after this duration")
+	quietEvents := flags.Bool("quiet-events", false, "suppress per-event JSON output")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
-		return errors.New("usage: runtime-guard run [--db path] [--flush-after duration]")
+		return errors.New("usage: runtime-guard run [--db path] [--flush-after duration] [--quiet-events]")
 	}
 
 	collector, err := sensor.NewRuntimeCollector()
@@ -201,7 +202,7 @@ func runLive(args []string, out io.Writer) (err error) {
 	statsTicker := time.NewTicker(defaultStatsInterval)
 	defer statsTicker.Stop()
 
-	fmt.Fprintln(out, "runtime-guard: collecting execve, IPv4/IPv6 connect, file write, and chmod events; press Ctrl-C to stop")
+	fmt.Fprintf(out, "runtime-guard: collecting execve, IPv4/IPv6 connect, file write, and chmod events; quiet_events=%t; press Ctrl-C to stop\n", *quietEvents)
 	encoder := json.NewEncoder(out)
 	for {
 		select {
@@ -221,8 +222,8 @@ func runLive(args []string, out io.Writer) (err error) {
 				eventQueue.Enqueue(event)
 			}
 			normalizedEvents++
-			if err := encoder.Encode(event); err != nil {
-				return fmt.Errorf("write normalized event: %w", err)
+			if err := writeLiveEvent(encoder, event, *quietEvents); err != nil {
+				return err
 			}
 			analyses, err := processor.Add(event)
 			if err != nil {
@@ -247,6 +248,16 @@ func runLive(args []string, out io.Writer) (err error) {
 			writeLiveStats(out, collector, processor, eventQueue, normalizedEvents)
 		}
 	}
+}
+
+func writeLiveEvent(encoder *json.Encoder, event events.Event, quiet bool) error {
+	if quiet {
+		return nil
+	}
+	if err := encoder.Encode(event); err != nil {
+		return fmt.Errorf("write normalized event: %w", err)
+	}
+	return nil
 }
 
 func writeLiveStats(out io.Writer, collector sensor.Collector, processor *pipeline.Processor, eventQueue *persistqueue.Queue, normalizedEvents uint64) {
@@ -445,7 +456,8 @@ func writeUsage(out io.Writer) {
 
 Usage:
   runtime-guard demo [--db path] [fixture.json]       Run the fake-event incident pipeline
-  runtime-guard run [--db path] [--flush-after time]  Stream live runtime events and detect incidents (Linux amd64, root)
+  runtime-guard run [--db path] [--flush-after time] [--quiet-events]
+                                                       Stream live runtime events and detect incidents (Linux amd64, root)
   runtime-guard events [--db path] [--limit count]    List stored normalized events
   runtime-guard incidents [--db path] [--limit count] List stored incidents
   runtime-guard show [--db path] <incident_id>        Show a stored incident

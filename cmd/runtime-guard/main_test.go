@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,6 +73,33 @@ func TestWriteLiveStats(t *testing.T) {
 		if !strings.Contains(output.String(), expected) {
 			t.Fatalf("output = %q, want substring %q", output.String(), expected)
 		}
+	}
+}
+
+func TestWriteLiveEventHonorsQuietMode(t *testing.T) {
+	event := events.Event{
+		EventID:     "evt-quiet-test",
+		Timestamp:   time.Date(2026, time.June, 3, 12, 0, 0, 0, time.UTC),
+		Host:        "devbox-01",
+		PID:         100,
+		ProcessName: "true",
+		EventType:   events.TypeExecve,
+	}
+
+	var verboseOutput bytes.Buffer
+	if err := writeLiveEvent(json.NewEncoder(&verboseOutput), event, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(verboseOutput.String(), "evt-quiet-test") {
+		t.Fatalf("verbose output = %q, want event JSON", verboseOutput.String())
+	}
+
+	var quietOutput bytes.Buffer
+	if err := writeLiveEvent(json.NewEncoder(&quietOutput), event, true); err != nil {
+		t.Fatal(err)
+	}
+	if quietOutput.Len() != 0 {
+		t.Fatalf("quiet output = %q, want empty output", quietOutput.String())
 	}
 }
 
