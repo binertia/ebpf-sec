@@ -29,8 +29,9 @@ An actual local `llama-server` report also completed successfully after JSON
 Schema output enforcement was added: the response decoded, persisted, and
 rendered through `runtime-guard show`.
 A transient systemd sandbox smoke test passed on Debian on 2026-06-03 after the
-additional sandbox directives were added. The short run confirmed collector
-startup and SQLite persistence under the hardened systemd settings.
+additional sandbox directives were added. After async SQLite batch persistence
+was added, a repeat short run processed about 51k normalized events with zero
+ring-buffer drops, zero syscall-correlation drops, and zero persistence drops.
 
 ## Implemented MVP Surface
 
@@ -126,10 +127,10 @@ Implemented deterministic rules:
   hostname is not guaranteed to match the container-runtime display name.
 - The eBPF smoke suite covers local loopback behavior only. Broader stress
   testing across kernel versions, containers, and network namespaces remains.
-- The transient systemd smoke run reported high ring-buffer drops under local
-  system-wide event load before the service buffer defaults were raised. This
-  does not indicate sandbox failure, but repeat smoke validation and longer
-  stress testing remain open.
+- The earlier transient systemd smoke run reported high ring-buffer drops under
+  local system-wide event load before service buffers and async SQLite batching
+  were tuned. A repeat short smoke run had zero drops, but longer stress testing
+  across busier hosts still remains open.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 
@@ -176,10 +177,17 @@ sudo env \
   -run 'TestConnectCollectorSmoke' -v
 ```
 
-The current systemd sandbox smoke helper also passed on 2026-06-03:
+The current systemd sandbox smoke helper also passed on 2026-06-03 after
+service buffer tuning and async SQLite batching:
 
 ```sh
 scripts/systemd-smoke.sh
+```
+
+The latest short run reached about 51k normalized events and ended with:
+
+```text
+ring_dropped=0 correlation_dropped=0 persist_dropped=0
 ```
 
 Run the non-root fake pipeline:
