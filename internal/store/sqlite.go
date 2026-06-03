@@ -197,6 +197,60 @@ LIMIT ?`, normalizeLimit(limit))
 	return loaded, nil
 }
 
+func (store *SQLite) TopEventProcesses(ctx context.Context, eventType string, limit int) ([]EventProcessSummary, error) {
+	rows, err := store.db.QueryContext(ctx, `
+SELECT process_name, executable_path, COUNT(*) AS event_count
+FROM events
+WHERE (? = '' OR event_type = ?)
+GROUP BY process_name, executable_path
+ORDER BY event_count DESC, process_name ASC, executable_path ASC
+LIMIT ?`, eventType, eventType, normalizeLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("summarize event processes: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []EventProcessSummary
+	for rows.Next() {
+		var summary EventProcessSummary
+		if err := rows.Scan(&summary.ProcessName, &summary.ExecutablePath, &summary.Count); err != nil {
+			return nil, fmt.Errorf("summarize event processes: %w", err)
+		}
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("summarize event processes: %w", err)
+	}
+	return summaries, nil
+}
+
+func (store *SQLite) TopEventPaths(ctx context.Context, eventType string, limit int) ([]EventValueSummary, error) {
+	rows, err := store.db.QueryContext(ctx, `
+SELECT file_path, COUNT(*) AS event_count
+FROM events
+WHERE file_path <> '' AND (? = '' OR event_type = ?)
+GROUP BY file_path
+ORDER BY event_count DESC, file_path ASC
+LIMIT ?`, eventType, eventType, normalizeLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("summarize event paths: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []EventValueSummary
+	for rows.Next() {
+		var summary EventValueSummary
+		if err := rows.Scan(&summary.Value, &summary.Count); err != nil {
+			return nil, fmt.Errorf("summarize event paths: %w", err)
+		}
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("summarize event paths: %w", err)
+	}
+	return summaries, nil
+}
+
 func (store *SQLite) ListIncidents(ctx context.Context, limit int) ([]compress.Incident, error) {
 	rows, err := store.db.QueryContext(ctx, `
 SELECT incident_id, start_time, end_time, root_process_json, process_tree_json,

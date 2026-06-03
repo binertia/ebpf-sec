@@ -63,6 +63,7 @@ Inspect stored data:
 
 ```sh
 sudo /usr/local/bin/runtime-guard events --db /var/lib/runtime-guard/runtime-guard.db
+sudo /usr/local/bin/runtime-guard event-summary --db /var/lib/runtime-guard/runtime-guard.db --type file_write
 sudo /usr/local/bin/runtime-guard incidents --db /var/lib/runtime-guard/runtime-guard.db
 sudo /usr/local/bin/runtime-guard show --db /var/lib/runtime-guard/runtime-guard.db <incident_id>
 ```
@@ -141,6 +142,12 @@ Track the final `runtime stats` line, CPU time, memory peak, and whether
 `ring_dropped`, `correlation_dropped`, or `persist_dropped` remain zero. If
 ring drops are nonzero, also capture `collector_ring_dropped` so the noisy
 collector can be tuned directly.
+Use `event-summary` against the stress database to inspect the stored sample of
+high-volume processes and paths:
+
+```sh
+sudo ./bin/runtime-guard-stress-... event-summary --db /var/lib/runtime-guard-stress-.../runtime-guard.db --type file_write --limit 10
+```
 
 To isolate one collector after a nonzero drop breakdown, rerun with a narrower
 collector set:

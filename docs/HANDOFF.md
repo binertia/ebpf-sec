@@ -109,6 +109,9 @@ Implemented deterministic rules:
   ring-buffer-drop, syscall-correlation-drop, and event-persistence counters
   every 10 seconds by default and at shutdown. It also reports per-collector
   ring-buffer and syscall-correlation drop breakdowns for tuning.
+- `runtime-guard event-summary --type file_write` summarizes stored event
+  volume by process/executable and file path so stress databases can identify
+  high-volume file-write sources without manual SQLite queries.
 - `runtime-guard run --event-buffer`, `--persist-buffer`,
   `--persist-batch-size`, and `--ring-buffer-size` tune burst capacity.
   `--collectors` narrows live collection to a comma-separated subset of
@@ -144,7 +147,9 @@ Implemented deterministic rules:
   run to identify and isolate the noisy collector in the next stress pass. A
   follow-up 10-minute all-collector stress run isolated the remaining ring
   drops to `file_write` only, so `--file-write-min-bytes` was added for
-  host-specific file-write volume control.
+  host-specific file-write volume control. A `4096`-byte floor reduced but did
+  not eliminate file-write drops, so event summaries should be inspected before
+  choosing a higher floor or an exclusion policy.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 

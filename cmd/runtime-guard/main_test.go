@@ -291,3 +291,77 @@ func TestRunLLMAnalyzesStoredIncident(t *testing.T) {
 		}
 	}
 }
+
+func TestRunEventSummary(t *testing.T) {
+	databaseDirectory := t.TempDir()
+	if err := os.Chmod(databaseDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	databasePath := filepath.Join(databaseDirectory, "runtime-guard.db")
+	database, err := store.OpenSQLite(databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.SaveEvents(context.Background(), []events.Event{
+		{
+			EventID:        "evt-write-1",
+			Timestamp:      time.Date(2026, time.June, 3, 21, 0, 0, 0, time.UTC),
+			Host:           "devbox-01",
+			PID:            100,
+			ProcessName:    "curl",
+			EventType:      events.TypeFileWrite,
+			ExecutablePath: "/usr/bin/curl",
+			FilePath:       "/tmp/payload",
+		},
+		{
+			EventID:        "evt-write-2",
+			Timestamp:      time.Date(2026, time.June, 3, 21, 0, 1, 0, time.UTC),
+			Host:           "devbox-01",
+			PID:            100,
+			ProcessName:    "curl",
+			EventType:      events.TypeFileWrite,
+			ExecutablePath: "/usr/bin/curl",
+			FilePath:       "/tmp/payload",
+		},
+		{
+			EventID:        "evt-write-3",
+			Timestamp:      time.Date(2026, time.June, 3, 21, 0, 2, 0, time.UTC),
+			Host:           "devbox-01",
+			PID:            200,
+			ProcessName:    "firefox",
+			EventType:      events.TypeFileWrite,
+			ExecutablePath: "/usr/lib/firefox/firefox",
+			FilePath:       "/home/james/.cache/browser",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	var output bytes.Buffer
+	if err := run([]string{
+		"event-summary",
+		"--db", databasePath,
+		"--type", "file_write",
+		"--limit", "2",
+	}, &output); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, expected := range []string{
+		"event summary: type=file_write",
+		"Top processes:",
+		"2  curl",
+		"/usr/bin/curl",
+		"1  firefox",
+		"Top file paths:",
+		"2  /tmp/payload",
+		"1  /home/james/.cache/browser",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Fatalf("output = %q, want substring %q", output.String(), expected)
+		}
+	}
+}

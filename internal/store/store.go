@@ -17,6 +17,17 @@ type LLMReport struct {
 	RawResponse string
 }
 
+type EventProcessSummary struct {
+	ProcessName    string
+	ExecutablePath string
+	Count          int64
+}
+
+type EventValueSummary struct {
+	Value string
+	Count int64
+}
+
 // Store is intentionally small so SQLite can be added without coupling the
 // event pipeline to database details.
 type Store interface {

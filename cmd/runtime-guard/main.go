@@ -69,6 +69,8 @@ func run(args []string, out io.Writer) error {
 		return nil
 	case "events":
 		return runEvents(args[1:], out)
+	case "event-summary":
+		return runEventSummary(args[1:], out)
 	case "incidents":
 		return runIncidents(args[1:], out)
 	case "show":
@@ -410,6 +412,61 @@ func runEvents(args []string, out io.Writer) error {
 	return nil
 }
 
+func runEventSummary(args []string, out io.Writer) error {
+	flags := flag.NewFlagSet("event-summary", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	databasePath := flags.String("db", defaultDB, "SQLite database path")
+	eventType := flags.String("type", "", "event type to summarize, for example file_write")
+	limit := flags.Int("limit", 10, "maximum rows per summary section")
+	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
+		return errors.New("usage: runtime-guard event-summary [--db path] [--type event_type] [--limit count]")
+	}
+
+	database, err := store.OpenSQLite(*databasePath)
+	if err != nil {
+		return err
+	}
+	defer database.Close()
+
+	processes, err := database.TopEventProcesses(context.Background(), *eventType, *limit)
+	if err != nil {
+		return err
+	}
+	paths, err := database.TopEventPaths(context.Background(), *eventType, *limit)
+	if err != nil {
+		return err
+	}
+
+	if *eventType == "" {
+		fmt.Fprintln(out, "event summary")
+	} else {
+		fmt.Fprintf(out, "event summary: type=%s\n", report.TerminalText(*eventType))
+	}
+	fmt.Fprintln(out, "\nTop processes:")
+	if len(processes) == 0 {
+		fmt.Fprintln(out, "  none")
+	} else {
+		for _, process := range processes {
+			executablePath := report.TerminalText(process.ExecutablePath)
+			if executablePath == "" {
+				executablePath = "-"
+			}
+			fmt.Fprintf(out, "  %8d  %-24s  %s\n",
+				process.Count, report.TerminalText(process.ProcessName), executablePath)
+		}
+	}
+
+	fmt.Fprintln(out, "\nTop file paths:")
+	if len(paths) == 0 {
+		fmt.Fprintln(out, "  none")
+	} else {
+		for _, path := range paths {
+			fmt.Fprintf(out, "  %8d  %s\n", path.Count, report.TerminalText(path.Value))
+		}
+	}
+	return nil
+}
+
 func runIncidents(args []string, out io.Writer) error {
 	flags := flag.NewFlagSet("incidents", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -537,6 +594,8 @@ Usage:
   runtime-guard run [--db path] [--flush-after time] [--stats-interval time] [--event-buffer count] [--persist-buffer count] [--persist-batch-size count] [--ring-buffer-size bytes] [--collectors list] [--file-write-min-bytes bytes] [--quiet-events]
                                                        Stream live runtime events and detect incidents (Linux amd64, root)
   runtime-guard events [--db path] [--limit count]    List stored normalized events
+  runtime-guard event-summary [--db path] [--type event_type] [--limit count]
+                                                       Summarize stored event volume by process and file path
   runtime-guard incidents [--db path] [--limit count] List stored incidents
   runtime-guard show [--db path] <incident_id>        Show a stored incident
   runtime-guard llm [--db path] <incident_id>         Analyze a stored incident with a local LLM

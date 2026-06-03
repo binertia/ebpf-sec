@@ -275,6 +275,7 @@ echo
 echo "State directory left for inspection: $state_dir"
 echo "Useful inspection commands:"
 echo "  sudo du -h '$state_dir'"
+echo "  sudo '$binary' event-summary --db '$state_dir/runtime-guard.db' --type file_write --limit 10"
 echo "  sudo '$binary' incidents --db '$state_dir/runtime-guard.db'"
 echo "  sudo '$binary' events --db '$state_dir/runtime-guard.db' --limit 5"
 echo "Cleanup command after inspection:"
