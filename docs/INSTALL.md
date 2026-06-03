@@ -145,8 +145,8 @@ Track the final `runtime stats` line, CPU time, memory peak, and whether
 ring drops are nonzero, also capture `collector_ring_dropped` so the noisy
 collector can be tuned directly. Record whether the host was plugged in or on
 battery and whether it was idle or running other workload during the test.
-Use `event-summary` against the stress database to inspect the stored sample of
-high-volume processes and paths:
+If drops return, use `event-summary` against the stress database to inspect the
+stored sample of high-volume processes and paths:
 
 ```sh
 sudo ./bin/runtime-guard-stress-... event-summary --db /var/lib/runtime-guard-stress-.../runtime-guard.db --type file_write --limit 10

@@ -37,6 +37,10 @@ After runtime-guard self file writes were excluded at the eBPF entry point, a
 10-minute plugged-in idle all-collector stress run on Debian processed 8,742
 normalized events with zero ring-buffer, syscall-correlation, and persistence
 drops. That run consumed 5.747s CPU and peaked at 90.1M memory.
+A follow-up 10-minute plugged-in light desktop run with browser activity, nvim,
+tmux, and a one-shot `xclip` pipeline processed 24,244 normalized events with
+zero ring-buffer, syscall-correlation, and persistence drops. That run consumed
+70.687s CPU and peaked at 122.8M memory.
 
 ## Implemented MVP Surface
 
@@ -150,10 +154,11 @@ Implemented deterministic rules:
   about 31.5M aggregate ring-buffer drops and a 3.5G memory peak. Per-collector
   drop breakdowns isolated the issue to `file_write`, and event summaries showed
   the dominant source was runtime-guard writing its own SQLite WAL/database.
-  After self-PID exclusion, a plugged-in idle 10-minute all-collector stress run
-  completed with zero ring-buffer, syscall-correlation, and persistence drops.
-  Broader stress testing across busier workloads, kernel versions, containers,
-  and network namespaces remains.
+  After self-PID exclusion, plugged-in idle and light desktop 10-minute
+  all-collector stress runs completed with zero ring-buffer,
+  syscall-correlation, and persistence drops. Broader stress testing across
+  heavier workloads, kernel versions, containers, and network namespaces
+  remains.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 
