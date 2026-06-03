@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
 	cat <<'EOF'
-Usage: scripts/systemd-stress.sh [--duration 30m] [--stats-interval 1m] [--yes]
+Usage: scripts/systemd-stress.sh [--duration 30m] [--stats-interval 1m] [--collectors all] [--yes]
 
 Builds a temporary runtime-guard binary and runs it under a transient systemd
 unit using the packaged service sandbox and tuned buffer settings. This is a
@@ -13,6 +13,8 @@ replace, enable, or stop the real runtime-guard.service.
 Options:
   --duration DURATION        How long to run the transient service. Default: 30m.
   --stats-interval DURATION  Runtime stats print interval. Default: 1m.
+  --collectors LIST          Comma-separated collectors: all, execve, connect, file_write, chmod.
+                             Default: all.
   --yes                      Skip the interactive confirmation prompt.
   --help                     Show this help.
 EOF
@@ -20,6 +22,7 @@ EOF
 
 duration=30m
 stats_interval=1m
+collectors=all
 assume_yes=0
 
 while [[ $# -gt 0 ]]; do
@@ -38,6 +41,14 @@ while [[ $# -gt 0 ]]; do
 			exit 2
 		fi
 		stats_interval="$2"
+		shift 2
+		;;
+	--collectors)
+		if [[ $# -lt 2 ]]; then
+			echo "--collectors requires a value" >&2
+			exit 2
+		fi
+		collectors="$2"
 		shift 2
 		;;
 	--yes)
@@ -105,6 +116,7 @@ Will:
   - start transient unit: $service_unit
   - run duration: $duration
   - stats interval: $stats_interval
+  - collectors: $collectors
   - write only inside service state: $state_dir
   - leave the real runtime-guard.service untouched
 
@@ -149,6 +161,7 @@ guard_bin=$1
 state_name=$2
 duration=$3
 stats_interval=$4
+collectors=$5
 state_dir="/var/lib/$state_name"
 db="$state_dir/runtime-guard.db"
 
@@ -160,6 +173,7 @@ db="$state_dir/runtime-guard.db"
 	--persist-buffer 16384 \
 	--persist-batch-size 512 \
 	--ring-buffer-size 8388608 \
+	--collectors "$collectors" \
 	--quiet-events &
 guard=$!
 
@@ -219,7 +233,7 @@ systemd_args=(
 	-p RestrictNamespaces=yes
 	-p RestrictRealtime=yes
 	-p RestrictSUIDSGID=yes
-	"$runner_script" "$binary" "$state_name" "$duration" "$stats_interval"
+	"$runner_script" "$binary" "$state_name" "$duration" "$stats_interval" "$collectors"
 )
 
 set +e

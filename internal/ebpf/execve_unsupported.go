@@ -66,6 +66,12 @@ func NewRuntimeCollector() (Collector, error) {
 	return nil, errors.New("live collection currently requires Linux amd64")
 }
 
-func NewRuntimeCollectorWithConfig(RuntimeConfig) (Collector, error) {
+func NewRuntimeCollectorWithConfig(config RuntimeConfig) (Collector, error) {
+	if _, err := checkedRuntimeConfig(config); err != nil {
+		return nil, err
+	}
+	if _, err := checkedCollectorNames(config.Collectors); err != nil {
+		return nil, err
+	}
 	return nil, errors.New("live collection currently requires Linux amd64")
 }

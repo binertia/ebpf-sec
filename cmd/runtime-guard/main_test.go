@@ -175,6 +175,11 @@ func TestRunLiveRejectsInvalidBufferOptions(t *testing.T) {
 			args: []string{"run", "--ring-buffer-size", "12582912"},
 			want: "collector ring buffer size must be a power of two",
 		},
+		{
+			name: "unknown collector",
+			args: []string{"run", "--collectors", "unknown"},
+			want: "unknown collector",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			err := run(test.args, &bytes.Buffer{})

@@ -7,11 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"runtime-guard/internal/events"
 )
 
 const DefaultRingBufferSize = 8 * 1024 * 1024
+
+const (
+	CollectorExecve    = "execve"
+	CollectorConnect   = "connect"
+	CollectorFileWrite = "file_write"
+	CollectorChmod     = "chmod"
+)
 
 type Collector interface {
 	Run(ctx context.Context, sink chan<- events.Event) error
@@ -23,6 +31,7 @@ type NamedCollector interface {
 
 type RuntimeConfig struct {
 	RingBufferSize int
+	Collectors     []string
 }
 
 type Stats struct {
@@ -45,6 +54,31 @@ type StatsDetailProvider interface {
 
 type CompositeCollector struct {
 	collectors []Collector
+}
+
+func DefaultCollectorNames() []string {
+	return []string{CollectorExecve, CollectorConnect, CollectorFileWrite, CollectorChmod}
+}
+
+func ParseCollectorNames(input string) ([]string, error) {
+	input = strings.TrimSpace(input)
+	if input == "" || strings.EqualFold(input, "all") {
+		return DefaultCollectorNames(), nil
+	}
+
+	pieces := strings.Split(input, ",")
+	names := make([]string, 0, len(pieces))
+	for _, piece := range pieces {
+		name := strings.ToLower(strings.TrimSpace(piece))
+		if name == "" {
+			return nil, errors.New("collector list contains an empty name")
+		}
+		if name == "all" {
+			return nil, errors.New(`collector "all" must be used by itself`)
+		}
+		names = append(names, name)
+	}
+	return checkedCollectorNames(names)
 }
 
 func NewCompositeCollector(collectors ...Collector) *CompositeCollector {
@@ -124,4 +158,40 @@ func checkedRuntimeConfig(config RuntimeConfig) (RuntimeConfig, error) {
 		return RuntimeConfig{}, errors.New("collector ring buffer size must be a power of two")
 	}
 	return config, nil
+}
+
+func checkedCollectorNames(names []string) ([]string, error) {
+	if len(names) == 0 {
+		return DefaultCollectorNames(), nil
+	}
+	if len(names) == 1 && strings.EqualFold(strings.TrimSpace(names[0]), "all") {
+		return DefaultCollectorNames(), nil
+	}
+
+	valid := map[string]struct{}{
+		CollectorExecve:    {},
+		CollectorConnect:   {},
+		CollectorFileWrite: {},
+		CollectorChmod:     {},
+	}
+	seen := make(map[string]struct{}, len(names))
+	checked := make([]string, 0, len(names))
+	for _, name := range names {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" {
+			return nil, errors.New("collector list contains an empty name")
+		}
+		if name == "all" {
+			return nil, errors.New(`collector "all" must be used by itself`)
+		}
+		if _, ok := valid[name]; !ok {
+			return nil, fmt.Errorf("unknown collector %q (valid: all,%s)", name, strings.Join(DefaultCollectorNames(), ","))
+		}
+		if _, ok := seen[name]; ok {
+			return nil, fmt.Errorf("duplicate collector %q", name)
+		}
+		seen[name] = struct{}{}
+		checked = append(checked, name)
+	}
+	return checked, nil
 }

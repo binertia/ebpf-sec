@@ -9,8 +9,9 @@ pipeline is runnable without root, deterministic detection and compression are
 implemented, SQLite persistence is hardened, Linux amd64 eBPF collectors are
 present, the live event path uses a bounded async persistence queue, and the
 local LLM client is wired through the CLI. Live service runs expose tunable
-collector-to-analyzer, async persistence queue, async persistence batch, and
-per-collector eBPF ring-buffer sizes.
+collector-to-analyzer, async persistence queue, async persistence batch,
+per-collector eBPF ring-buffer sizes, and explicit collector selection for
+isolating high-volume sources.
 The async event persistence queue applies a bounded per-event save timeout and
 transitions to a closed/drop state on the first persistence error.
 Basic packaging assets are present for local service deployment: an install
@@ -109,9 +110,12 @@ Implemented deterministic rules:
   every 10 seconds by default and at shutdown. It also reports per-collector
   ring-buffer and syscall-correlation drop breakdowns for tuning.
 - `runtime-guard run --event-buffer`, `--persist-buffer`,
-  `--persist-batch-size`, and `--ring-buffer-size` tune burst capacity. The
-  packaged service uses 16384 event and persistence queue slots, 512 events per
-  persistence transaction, and 8 MiB per collector ring buffer.
+  `--persist-batch-size`, and `--ring-buffer-size` tune burst capacity.
+  `--collectors` narrows live collection to a comma-separated subset of
+  `execve`, `connect`, `file_write`, and `chmod` for stress isolation or
+  targeted deployments. The packaged service uses 16384 event and persistence
+  queue slots, 512 events per persistence transaction, 8 MiB per collector ring
+  buffer, and all collectors by default.
 - `runtime-guard run --quiet-events` suppresses per-event JSON for service-style
   operation while still printing incidents and periodic stats.
 - `runtime-guard run --stats-interval` controls periodic runtime stats; `0`
@@ -134,8 +138,8 @@ Implemented deterministic rules:
   across busier hosts still remains open. A 30-minute stress run on Debian
   processed about 3.6M normalized events with no persistence or correlation
   drops, but still had about 31.5M aggregate ring-buffer drops and a 3.5G memory
-  peak. Per-collector drop breakdowns were added after that run to identify the
-  noisy collector in the next stress pass.
+  peak. Per-collector drop breakdowns and `--collectors` were added after that
+  run to identify and isolate the noisy collector in the next stress pass.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 

@@ -36,6 +36,9 @@ line. It also raises burst buffers with `--event-buffer 16384`,
 `--ring-buffer-size 8388608`. The private state directory matches the SQLite
 path checks in the application: the database parent directory must be owned by
 the service UID and must not permit group or other writes.
+The service enables all collectors by default. Add `--collectors` to the unit's
+`ExecStart` only when you intentionally want a narrower deployment such as
+`--collectors execve,connect`.
 
 ```sh
 sudo install -o root -g root -m 0644 \
@@ -135,6 +138,14 @@ Track the final `runtime stats` line, CPU time, memory peak, and whether
 `ring_dropped`, `correlation_dropped`, or `persist_dropped` remain zero. If
 ring drops are nonzero, also capture `collector_ring_dropped` so the noisy
 collector can be tuned directly.
+
+To isolate one collector after a nonzero drop breakdown, rerun with a narrower
+collector set:
+
+```sh
+scripts/systemd-stress.sh --duration 10m --stats-interval 1m --collectors connect
+scripts/systemd-stress.sh --duration 10m --stats-interval 1m --collectors file_write
+```
 
 ## Uninstall
 

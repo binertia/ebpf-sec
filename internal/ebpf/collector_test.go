@@ -3,6 +3,7 @@ package ebpf
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -97,6 +98,55 @@ func TestCheckedRuntimeConfigRejectsInvalidRingBufferSize(t *testing.T) {
 		if _, err := checkedRuntimeConfig(RuntimeConfig{RingBufferSize: size}); err == nil {
 			t.Fatalf("ring buffer size %d should fail", size)
 		}
+	}
+}
+
+func TestParseCollectorNames(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "default",
+			input: "",
+			want:  DefaultCollectorNames(),
+		},
+		{
+			name:  "all",
+			input: "all",
+			want:  DefaultCollectorNames(),
+		},
+		{
+			name:  "subset",
+			input: " execve,connect ",
+			want:  []string{CollectorExecve, CollectorConnect},
+		},
+		{
+			name:  "normalized case",
+			input: "FILE_WRITE,CHMOD",
+			want:  []string{CollectorFileWrite, CollectorChmod},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := ParseCollectorNames(test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("collectors = %#v, want %#v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestParseCollectorNamesRejectsInvalidInput(t *testing.T) {
+	for _, input := range []string{"execve,,connect", "unknown", "all,execve", "connect,connect"} {
+		t.Run(input, func(t *testing.T) {
+			if _, err := ParseCollectorNames(input); err == nil {
+				t.Fatal("expected error")
+			}
+		})
 	}
 }
 

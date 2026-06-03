@@ -85,23 +85,40 @@ func NewRuntimeCollectorWithConfig(config RuntimeConfig) (Collector, error) {
 	if err != nil {
 		return nil, err
 	}
-	execve, err := NewExecveCollectorWithConfig(config)
+	collectorNames, err := checkedCollectorNames(config.Collectors)
 	if err != nil {
 		return nil, err
 	}
-	connect, err := NewConnectCollectorWithConfig(config)
-	if err != nil {
-		return nil, err
+	collectors := make([]Collector, 0, len(collectorNames))
+	for _, name := range collectorNames {
+		switch name {
+		case CollectorExecve:
+			collector, err := NewExecveCollectorWithConfig(config)
+			if err != nil {
+				return nil, err
+			}
+			collectors = append(collectors, collector)
+		case CollectorConnect:
+			collector, err := NewConnectCollectorWithConfig(config)
+			if err != nil {
+				return nil, err
+			}
+			collectors = append(collectors, collector)
+		case CollectorFileWrite:
+			collector, err := NewFileWriteCollectorWithConfig(config)
+			if err != nil {
+				return nil, err
+			}
+			collectors = append(collectors, collector)
+		case CollectorChmod:
+			collector, err := NewChmodCollectorWithConfig(config)
+			if err != nil {
+				return nil, err
+			}
+			collectors = append(collectors, collector)
+		}
 	}
-	fileWrite, err := NewFileWriteCollectorWithConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	chmod, err := NewChmodCollectorWithConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	return NewCompositeCollector(execve, connect, fileWrite, chmod), nil
+	return NewCompositeCollector(collectors...), nil
 }
 
 // Run attaches amd64 raw tracepoint collectors and emits completed normalized
