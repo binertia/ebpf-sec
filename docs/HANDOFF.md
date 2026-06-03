@@ -83,6 +83,9 @@ Implemented deterministic rules:
   regular files and cannot be symlinks. The immediate parent directory must be
   owned by the running UID and cannot permit group or other writes.
 - Terminal output strips control and bidirectional formatting characters.
+- Redaction covers common credential carriers including authorization headers,
+  bearer tokens, API/access keys, cookies, sessions, private-key markers, and
+  credential-bearing URL parameters before storage, prompts, and reports.
 - Grouping retains at most 4096 events per active candidate and 65536 events
   globally. Dropped older history is reported in the incident JSON and CLI.
 - Incident storage upserts its supporting evidence rows and incident links in

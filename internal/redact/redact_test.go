@@ -48,6 +48,26 @@ func TestRedactString(t *testing.T) {
 			want:  "[REDACTED]",
 		},
 		{
+			name:  "cookie assignment",
+			input: "COOKIE=sessionid=abcdef",
+			want:  "COOKIE=[REDACTED]",
+		},
+		{
+			name:  "set cookie header",
+			input: "Set-Cookie: sessionid=abcdef",
+			want:  "[REDACTED]",
+		},
+		{
+			name:  "aws secret access key",
+			input: "AWS_SECRET_ACCESS_KEY=abcdef",
+			want:  "AWS_SECRET_ACCESS_KEY=[REDACTED]",
+		},
+		{
+			name:  "private key marker",
+			input: "-----BEGIN PRIVATE KEY-----abcdef",
+			want:  "[REDACTED]",
+		},
+		{
 			name:  "split password in command string",
 			input: "curl --password supersecret https://example.com",
 			want:  "curl --password [REDACTED] https://example.com",
@@ -73,12 +93,13 @@ func TestRedactCommandLineHandlesSplitSensitiveArguments(t *testing.T) {
 		"curl",
 		"--password", "supersecret",
 		"-H", "X-API-Key: abcdef",
+		"--cookie=sessionid=abcdef",
 		"-u", "user:password",
 		"https://example.com/?token=abcdef",
 	}
 	redacted := redact.RedactCommandLine(commandLine)
 	joined := strings.Join(redacted, " ")
-	for _, forbidden := range []string{"supersecret", "abcdef", "user:password"} {
+	for _, forbidden := range []string{"supersecret", "abcdef", "user:password", "sessionid"} {
 		if strings.Contains(joined, forbidden) {
 			t.Fatalf("redacted command line still contains %q: %q", forbidden, joined)
 		}
@@ -97,10 +118,12 @@ func TestRedactEventIncidentAndReport(t *testing.T) {
 			"nested": map[string]any{
 				"password": "still-secret",
 			},
+			"aws_secret_access_key": "aws-secret",
+			"cookie":                "sessionid=abcdef",
 		},
 	}
 	redactedEvent := redact.Event(event)
-	for _, forbidden := range []string{"abc123", "secret", "still-secret"} {
+	for _, forbidden := range []string{"abc123", "secret", "still-secret", "aws-secret", "sessionid"} {
 		if strings.Contains(strings.Join(redactedEvent.CommandLine, " "), forbidden) {
 			t.Fatalf("redacted command line still contains %q", forbidden)
 		}
@@ -110,6 +133,12 @@ func TestRedactEventIncidentAndReport(t *testing.T) {
 	}
 	if redactedEvent.Metadata["api_key"] != "[REDACTED]" {
 		t.Fatalf("metadata redaction = %#v, want [REDACTED]", redactedEvent.Metadata["api_key"])
+	}
+	if redactedEvent.Metadata["aws_secret_access_key"] != "[REDACTED]" {
+		t.Fatalf("metadata redaction = %#v, want [REDACTED]", redactedEvent.Metadata["aws_secret_access_key"])
+	}
+	if redactedEvent.Metadata["cookie"] != "[REDACTED]" {
+		t.Fatalf("metadata redaction = %#v, want [REDACTED]", redactedEvent.Metadata["cookie"])
 	}
 
 	incident := compress.Incident{

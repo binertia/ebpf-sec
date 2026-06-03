@@ -10,7 +10,7 @@ import (
 	"runtime-guard/internal/events"
 )
 
-var sensitiveKeyPattern = regexp.MustCompile(`(?i)(authorization|api[_-]?key|token|secret|password|passwd|pwd|session|bearer)`)
+var sensitiveKeyPattern = regexp.MustCompile(`(?i)(authorization|api[_-]?key|access[_-]?key|token|secret|password|passwd|pwd|session|bearer|cookie|credential|private[_-]?key)`)
 
 func Event(event events.Event) events.Event {
 	redacted := event
@@ -144,7 +144,10 @@ func redactURL(value string) (string, bool) {
 
 func redactFlag(value string) string {
 	lower := strings.ToLower(value)
-	if strings.Contains(lower, "authorization:") || strings.Contains(lower, "bearer ") {
+	if strings.Contains(lower, "authorization:") ||
+		strings.Contains(lower, "bearer ") ||
+		strings.Contains(lower, "set-cookie:") ||
+		strings.Contains(lower, "private key-----") {
 		return "[REDACTED]"
 	}
 	if key, _, found := strings.Cut(value, ":"); found && !strings.ContainsAny(key, " \t") && sensitiveKeyPattern.MatchString(key) {
@@ -203,7 +206,9 @@ func redactArgument(value string) (string, bool) {
 	}
 	for _, prefix := range []string{
 		"--token=", "--password=", "--passwd=", "--pwd=", "--secret=", "--api-key=", "--apikey=",
+		"--access-key=", "--access_key=", "--cookie=", "--credential=", "--private-key=", "--private_key=",
 		"token=", "password=", "passwd=", "pwd=", "secret=", "api_key=", "apikey=",
+		"access_key=", "access-key=", "cookie=", "credential=", "private_key=", "private-key=",
 	} {
 		if strings.HasPrefix(lower, prefix) {
 			key, _, _ := strings.Cut(value, "=")
