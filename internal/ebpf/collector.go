@@ -5,12 +5,20 @@ package ebpf
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 
 	"runtime-guard/internal/events"
 )
 
+const DefaultRingBufferSize = 8 * 1024 * 1024
+
 type Collector interface {
 	Run(ctx context.Context, sink chan<- events.Event) error
+}
+
+type RuntimeConfig struct {
+	RingBufferSize int
 }
 
 type Stats struct {
@@ -70,4 +78,24 @@ func (collector *CompositeCollector) Run(ctx context.Context, sink chan<- events
 		}
 	}
 	return firstError
+}
+
+func checkedRuntimeConfig(config RuntimeConfig) (RuntimeConfig, error) {
+	if config.RingBufferSize == 0 {
+		config.RingBufferSize = DefaultRingBufferSize
+	}
+	if config.RingBufferSize < 0 {
+		return RuntimeConfig{}, errors.New("collector ring buffer size must be positive")
+	}
+	pageSize := os.Getpagesize()
+	if config.RingBufferSize < pageSize {
+		return RuntimeConfig{}, fmt.Errorf("collector ring buffer size must be at least one page (%d bytes)", pageSize)
+	}
+	if uint64(config.RingBufferSize) > uint64(^uint32(0)) {
+		return RuntimeConfig{}, errors.New("collector ring buffer size must fit in uint32")
+	}
+	if config.RingBufferSize&(config.RingBufferSize-1) != 0 {
+		return RuntimeConfig{}, errors.New("collector ring buffer size must be a power of two")
+	}
+	return config, nil
 }

@@ -8,7 +8,9 @@ Runtime Guard is **100% complete for the planned MVP**. The fake-event
 pipeline is runnable without root, deterministic detection and compression are
 implemented, SQLite persistence is hardened, Linux amd64 eBPF collectors are
 present, the live event path uses a bounded async persistence queue, and the
-local LLM client is wired through the CLI.
+local LLM client is wired through the CLI. Live service runs expose tunable
+collector-to-analyzer, async persistence, and per-collector eBPF ring-buffer
+sizes.
 The async event persistence queue applies a bounded per-event save timeout and
 transitions to a closed/drop state on the first persistence error.
 Basic packaging assets are present for local service deployment: an install
@@ -103,6 +105,9 @@ Implemented deterministic rules:
 - The live CLI reports normalized, grouped, analyzed, incident, kernel
   ring-buffer-drop, syscall-correlation-drop, and event-persistence counters
   every 10 seconds by default and at shutdown.
+- `runtime-guard run --event-buffer`, `--persist-buffer`, and
+  `--ring-buffer-size` tune burst capacity. The packaged service uses 16384
+  event and persistence queue slots plus 8 MiB per collector ring buffer.
 - `runtime-guard run --quiet-events` suppresses per-event JSON for service-style
   operation while still printing incidents and periodic stats.
 - `runtime-guard run --stats-interval` controls periodic runtime stats; `0`
@@ -120,8 +125,9 @@ Implemented deterministic rules:
 - The eBPF smoke suite covers local loopback behavior only. Broader stress
   testing across kernel versions, containers, and network namespaces remains.
 - The transient systemd smoke run reported high ring-buffer drops under local
-  system-wide event load. This does not indicate sandbox failure, but throughput
-  tuning and longer stress testing remain open.
+  system-wide event load before the service buffer defaults were raised. This
+  does not indicate sandbox failure, but repeat smoke validation and longer
+  stress testing remain open.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 

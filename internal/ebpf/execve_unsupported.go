@@ -18,11 +18,19 @@ func NewExecveCollector() (*ExecveCollector, error) {
 	return nil, errors.New("live execve collection currently requires Linux amd64")
 }
 
+func NewExecveCollectorWithConfig(RuntimeConfig) (*ExecveCollector, error) {
+	return nil, errors.New("live execve collection currently requires Linux amd64")
+}
+
 func (*ExecveCollector) Run(context.Context, chan<- events.Event) error {
 	return errors.New("live execve collection currently requires Linux amd64")
 }
 
 func NewConnectCollector() (*ConnectCollector, error) {
+	return nil, errors.New("live connect collection currently requires Linux amd64")
+}
+
+func NewConnectCollectorWithConfig(RuntimeConfig) (*ConnectCollector, error) {
 	return nil, errors.New("live connect collection currently requires Linux amd64")
 }
 
@@ -34,6 +42,10 @@ func NewFileWriteCollector() (*FileWriteCollector, error) {
 	return nil, errors.New("live file write collection currently requires Linux amd64")
 }
 
+func NewFileWriteCollectorWithConfig(RuntimeConfig) (*FileWriteCollector, error) {
+	return nil, errors.New("live file write collection currently requires Linux amd64")
+}
+
 func (*FileWriteCollector) Run(context.Context, chan<- events.Event) error {
 	return errors.New("live file write collection currently requires Linux amd64")
 }
@@ -42,10 +54,18 @@ func NewChmodCollector() (*ChmodCollector, error) {
 	return nil, errors.New("live chmod collection currently requires Linux amd64")
 }
 
+func NewChmodCollectorWithConfig(RuntimeConfig) (*ChmodCollector, error) {
+	return nil, errors.New("live chmod collection currently requires Linux amd64")
+}
+
 func (*ChmodCollector) Run(context.Context, chan<- events.Event) error {
 	return errors.New("live chmod collection currently requires Linux amd64")
 }
 
 func NewRuntimeCollector() (Collector, error) {
+	return nil, errors.New("live collection currently requires Linux amd64")
+}
+
+func NewRuntimeCollectorWithConfig(RuntimeConfig) (Collector, error) {
 	return nil, errors.New("live collection currently requires Linux amd64")
 }

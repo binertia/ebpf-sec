@@ -71,6 +71,24 @@ func TestCompositeCollectorCombinesChildStats(t *testing.T) {
 	}
 }
 
+func TestCheckedRuntimeConfigDefaultsRingBufferSize(t *testing.T) {
+	config, err := checkedRuntimeConfig(RuntimeConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.RingBufferSize != DefaultRingBufferSize {
+		t.Fatalf("ring buffer size = %d, want %d", config.RingBufferSize, DefaultRingBufferSize)
+	}
+}
+
+func TestCheckedRuntimeConfigRejectsInvalidRingBufferSize(t *testing.T) {
+	for _, size := range []int{-1, 1, 12 * 1024 * 1024} {
+		if _, err := checkedRuntimeConfig(RuntimeConfig{RingBufferSize: size}); err == nil {
+			t.Fatalf("ring buffer size %d should fail", size)
+		}
+	}
+}
+
 type collectorFunc func(ctx context.Context, sink chan<- events.Event) error
 
 func (function collectorFunc) Run(ctx context.Context, sink chan<- events.Event) error {

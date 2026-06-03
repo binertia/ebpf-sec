@@ -27,7 +27,6 @@ import (
 const (
 	execveSyscallNumber = 59
 	ptRegsDIOffset      = 112
-	ringBufferSize      = 1 << 20
 	filenameSize        = 256
 	commSize            = 16
 )
@@ -36,6 +35,7 @@ type ExecveCollector struct {
 	host           string
 	procRoot       string
 	containerCache *containerMetadataCache
+	ringBufferSize int
 	metrics        collectorMetrics
 	sequence       atomic.Uint64
 }
@@ -49,11 +49,24 @@ type execveRecord struct {
 }
 
 func NewExecveCollector() (*ExecveCollector, error) {
+	return NewExecveCollectorWithConfig(RuntimeConfig{})
+}
+
+func NewExecveCollectorWithConfig(config RuntimeConfig) (*ExecveCollector, error) {
+	config, err := checkedRuntimeConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	host, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("read hostname: %w", err)
 	}
-	return &ExecveCollector{host: host, procRoot: "/proc", containerCache: newContainerMetadataCache()}, nil
+	return &ExecveCollector{
+		host:           host,
+		procRoot:       "/proc",
+		containerCache: newContainerMetadataCache(),
+		ringBufferSize: config.RingBufferSize,
+	}, nil
 }
 
 // Run attaches an amd64 raw tracepoint collector and emits normalized execve
@@ -70,7 +83,7 @@ func (collector *ExecveCollector) Run(ctx context.Context, sink chan<- events.Ev
 	records, err := cebpf.NewMap(&cebpf.MapSpec{
 		Type:       cebpf.RingBuf,
 		Name:       "rg_execve_rb",
-		MaxEntries: ringBufferSize,
+		MaxEntries: uint32(collector.ringBufferSize),
 	})
 	if err != nil {
 		return fmt.Errorf("create execve ring buffer: %w", err)

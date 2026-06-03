@@ -135,6 +135,45 @@ func TestStatsIntervalLabel(t *testing.T) {
 	}
 }
 
+func TestRunLiveRejectsInvalidBufferOptions(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "event buffer",
+			args: []string{"run", "--event-buffer", "0"},
+			want: "event buffer size must be positive",
+		},
+		{
+			name: "persist buffer",
+			args: []string{"run", "--persist-buffer", "0"},
+			want: "persist buffer size must be positive",
+		},
+		{
+			name: "ring buffer positive",
+			args: []string{"run", "--ring-buffer-size", "0"},
+			want: "ring buffer size must be positive",
+		},
+		{
+			name: "ring buffer power of two",
+			args: []string{"run", "--ring-buffer-size", "12582912"},
+			want: "collector ring buffer size must be a power of two",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := run(test.args, &bytes.Buffer{})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %q, want substring %q", err.Error(), test.want)
+			}
+		})
+	}
+}
+
 func TestRunLLMAnalyzesStoredIncident(t *testing.T) {
 	databaseDirectory := t.TempDir()
 	if err := os.Chmod(databaseDirectory, 0o700); err != nil {

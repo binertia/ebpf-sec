@@ -40,6 +40,7 @@ type ConnectCollector struct {
 	host           string
 	procRoot       string
 	containerCache *containerMetadataCache
+	ringBufferSize int
 	metrics        collectorMetrics
 	sequence       atomic.Uint64
 }
@@ -55,27 +56,48 @@ type connectRecord struct {
 }
 
 func NewConnectCollector() (*ConnectCollector, error) {
+	return NewConnectCollectorWithConfig(RuntimeConfig{})
+}
+
+func NewConnectCollectorWithConfig(config RuntimeConfig) (*ConnectCollector, error) {
+	config, err := checkedRuntimeConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	host, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("read hostname: %w", err)
 	}
-	return &ConnectCollector{host: host, procRoot: "/proc", containerCache: newContainerMetadataCache()}, nil
+	return &ConnectCollector{
+		host:           host,
+		procRoot:       "/proc",
+		containerCache: newContainerMetadataCache(),
+		ringBufferSize: config.RingBufferSize,
+	}, nil
 }
 
 func NewRuntimeCollector() (Collector, error) {
-	execve, err := NewExecveCollector()
+	return NewRuntimeCollectorWithConfig(RuntimeConfig{})
+}
+
+func NewRuntimeCollectorWithConfig(config RuntimeConfig) (Collector, error) {
+	config, err := checkedRuntimeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	connect, err := NewConnectCollector()
+	execve, err := NewExecveCollectorWithConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	fileWrite, err := NewFileWriteCollector()
+	connect, err := NewConnectCollectorWithConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	chmod, err := NewChmodCollector()
+	fileWrite, err := NewFileWriteCollectorWithConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	chmod, err := NewChmodCollectorWithConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +115,7 @@ func (collector *ConnectCollector) Run(ctx context.Context, sink chan<- events.E
 	records, err := cebpf.NewMap(&cebpf.MapSpec{
 		Type:       cebpf.RingBuf,
 		Name:       "rg_connect_rb",
-		MaxEntries: ringBufferSize,
+		MaxEntries: uint32(collector.ringBufferSize),
 	})
 	if err != nil {
 		return fmt.Errorf("create connect ring buffer: %w", err)

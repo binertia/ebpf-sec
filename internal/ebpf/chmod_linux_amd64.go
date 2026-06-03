@@ -34,6 +34,7 @@ type ChmodCollector struct {
 	host           string
 	procRoot       string
 	containerCache *containerMetadataCache
+	ringBufferSize int
 	metrics        collectorMetrics
 	sequence       atomic.Uint64
 }
@@ -53,11 +54,24 @@ type chmodRecord struct {
 }
 
 func NewChmodCollector() (*ChmodCollector, error) {
+	return NewChmodCollectorWithConfig(RuntimeConfig{})
+}
+
+func NewChmodCollectorWithConfig(config RuntimeConfig) (*ChmodCollector, error) {
+	config, err := checkedRuntimeConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	host, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("read hostname: %w", err)
 	}
-	return &ChmodCollector{host: host, procRoot: "/proc", containerCache: newContainerMetadataCache()}, nil
+	return &ChmodCollector{
+		host:           host,
+		procRoot:       "/proc",
+		containerCache: newContainerMetadataCache(),
+		ringBufferSize: config.RingBufferSize,
+	}, nil
 }
 
 // Run emits normalized completed chmod operations. The execute-bit signal
@@ -72,7 +86,7 @@ func (collector *ChmodCollector) Run(ctx context.Context, sink chan<- events.Eve
 	records, err := cebpf.NewMap(&cebpf.MapSpec{
 		Type:       cebpf.RingBuf,
 		Name:       "rg_chmod_rb",
-		MaxEntries: ringBufferSize,
+		MaxEntries: uint32(collector.ringBufferSize),
 	})
 	if err != nil {
 		return fmt.Errorf("create chmod ring buffer: %w", err)

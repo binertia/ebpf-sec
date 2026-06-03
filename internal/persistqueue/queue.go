@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DefaultCapacity    = 1024
+	DefaultCapacity    = 8192
 	DefaultSaveTimeout = 10 * time.Second
 )
 

@@ -34,6 +34,7 @@ type FileWriteCollector struct {
 	host           string
 	procRoot       string
 	containerCache *containerMetadataCache
+	ringBufferSize int
 	metrics        collectorMetrics
 	sequence       atomic.Uint64
 }
@@ -51,11 +52,24 @@ type fileWriteRecord struct {
 }
 
 func NewFileWriteCollector() (*FileWriteCollector, error) {
+	return NewFileWriteCollectorWithConfig(RuntimeConfig{})
+}
+
+func NewFileWriteCollectorWithConfig(config RuntimeConfig) (*FileWriteCollector, error) {
+	config, err := checkedRuntimeConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	host, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("read hostname: %w", err)
 	}
-	return &FileWriteCollector{host: host, procRoot: "/proc", containerCache: newContainerMetadataCache()}, nil
+	return &FileWriteCollector{
+		host:           host,
+		procRoot:       "/proc",
+		containerCache: newContainerMetadataCache(),
+		ringBufferSize: config.RingBufferSize,
+	}, nil
 }
 
 // Run emits completed path-backed file writes. Descriptors 0-2 and descriptors
@@ -69,7 +83,7 @@ func (collector *FileWriteCollector) Run(ctx context.Context, sink chan<- events
 	records, err := cebpf.NewMap(&cebpf.MapSpec{
 		Type:       cebpf.RingBuf,
 		Name:       "rg_write_rb",
-		MaxEntries: ringBufferSize,
+		MaxEntries: uint32(collector.ringBufferSize),
 	})
 	if err != nil {
 		return fmt.Errorf("create file write ring buffer: %w", err)

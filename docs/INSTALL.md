@@ -31,9 +31,11 @@ state directory, hides host devices, blocks namespace creation, restricts the
 service to the native syscall ABI, and prevents writable-executable memory. It
 uses `--quiet-events` and `--stats-interval 1m` so journald receives startup
 messages, incidents, and periodic stats without every normalized event JSON
-line. The private state directory matches the SQLite path checks in the
-application: the database parent directory must be owned by the service UID and
-must not permit group or other writes.
+line. It also raises burst buffers with `--event-buffer 16384`,
+`--persist-buffer 16384`, and `--ring-buffer-size 8388608`. The private state
+directory matches the SQLite path checks in the application: the database
+parent directory must be owned by the service UID and must not permit group or
+other writes.
 
 ```sh
 sudo install -o root -g root -m 0644 \
