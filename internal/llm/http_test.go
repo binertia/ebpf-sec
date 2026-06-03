@@ -157,6 +157,30 @@ func TestNewHTTPClientRejectsRemoteEndpointWithoutOptIn(t *testing.T) {
 	}
 }
 
+func TestNewHTTPClientRejectsUnsafeEndpointForms(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+	}{
+		{"unsupported scheme", "ftp://127.0.0.1"},
+		{"missing host", "http:///v1"},
+		{"credentials", "http://user:pass@127.0.0.1"},
+		{"query", "http://127.0.0.1?token=secret"},
+		{"fragment", "http://127.0.0.1#fragment"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := NewHTTPClient(HTTPConfig{
+				Endpoint: test.endpoint,
+				Model:    "test-model",
+			}); err == nil {
+				t.Fatal("expected endpoint rejection")
+			}
+		})
+	}
+}
+
 func TestHTTPClientEnforcesTimeout(t *testing.T) {
 	transport := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		select {

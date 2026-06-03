@@ -35,6 +35,20 @@ func (errorSaver) SaveEvent(context.Context, events.Event) error {
 	return errors.New("boom")
 }
 
+type blockingErrorSaver struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (s *blockingErrorSaver) SaveEvent(context.Context, events.Event) error {
+	select {
+	case s.started <- struct{}{}:
+	default:
+	}
+	<-s.release
+	return errors.New("boom")
+}
+
 type contextBlockingSaver struct {
 	started chan struct{}
 }
@@ -153,6 +167,9 @@ func TestQueueReportsSaverError(t *testing.T) {
 	if err := queue.Close(); err == nil {
 		t.Fatal("close should report saver error")
 	}
+	if stats := queue.Stats(); stats.Dropped != 2 {
+		t.Fatalf("stats = %#v, want dropped=2 for failed event and post-error enqueue", stats)
+	}
 }
 
 func TestQueueSaveTimeoutUnblocksClose(t *testing.T) {
@@ -186,10 +203,50 @@ func TestQueueSaveTimeoutUnblocksClose(t *testing.T) {
 	if stats.Persisted != 0 {
 		t.Fatalf("persisted = %d, want 0", stats.Persisted)
 	}
+	if stats.Dropped != 1 {
+		t.Fatalf("dropped = %d, want 1 failed event", stats.Dropped)
+	}
 }
 
 func TestQueueRejectsNegativeSaveTimeout(t *testing.T) {
 	if _, err := NewWithConfig(errorSaver{}, Config{SaveTimeout: -time.Second}); err == nil {
 		t.Fatal("expected negative save timeout to fail")
+	}
+}
+
+func TestQueueCountsBufferedEventsDroppedAfterSaverError(t *testing.T) {
+	saver := &blockingErrorSaver{
+		started: make(chan struct{}, 1),
+		release: make(chan struct{}),
+	}
+	queue, err := New(saver, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, eventID := range []string{"evt-1", "evt-2", "evt-3"} {
+		if !queue.Enqueue(events.Event{EventID: eventID}) {
+			t.Fatalf("enqueue %q dropped unexpectedly", eventID)
+		}
+	}
+	select {
+	case <-saver.started:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not start")
+	}
+
+	close(saver.release)
+	select {
+	case <-queue.Errors():
+	case <-time.After(time.Second):
+		t.Fatal("expected saver error")
+	}
+
+	if err := queue.Close(); err == nil {
+		t.Fatal("close should report saver error")
+	}
+	stats := queue.Stats()
+	if stats.Received != 3 || stats.Enqueued != 3 || stats.Persisted != 0 || stats.Dropped != 3 {
+		t.Fatalf("stats = %#v, want received=3 enqueued=3 persisted=0 dropped=3", stats)
 	}
 }

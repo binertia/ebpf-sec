@@ -77,6 +77,8 @@ Implemented deterministic rules:
   are enforced, responses are size-limited, and strict JSON is required.
 - llama-server receives a JSON Schema-constrained response format. The client
   still rejects malformed or schema-invalid reports instead of coercing them.
+  Endpoint validation rejects credentials, query strings, fragments, missing
+  hosts, unsupported schemes, and non-loopback endpoints without opt-in.
 - New SQLite files are created with `0600`. Existing DB paths must be private
   regular files and cannot be symlinks. The immediate parent directory must be
   owned by the running UID and cannot permit group or other writes.
@@ -88,6 +90,7 @@ Implemented deterministic rules:
 - Async event persistence uses a default 10-second per-event save timeout.
   Persistence errors are surfaced through the queue error channel and future
   enqueue attempts are dropped instead of being buffered without a worker.
+  Failed and buffered-but-unpersisted events are counted as dropped.
 - The live CLI reports normalized, grouped, analyzed, incident, kernel
   ring-buffer-drop, syscall-correlation-drop, and event-persistence counters
   every 10 seconds by default and at shutdown.

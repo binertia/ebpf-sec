@@ -145,6 +145,7 @@ func (queue *Queue) recordError(err error) {
 		return
 	}
 	queue.err = err
+	atomic.AddUint64(&queue.dropped, uint64(1+len(queue.events)))
 	if !queue.closed {
 		queue.closed = true
 		close(queue.events)
