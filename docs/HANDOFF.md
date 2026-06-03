@@ -24,8 +24,10 @@ writable-executable memory denial, and IPC cleanup.
 
 Root-only eBPF smoke tests passed on a capable Linux amd64 host on 2026-06-03,
 including after connect, file-write, and chmod syscall-exit correlation was
-added. IPv4 and IPv6 connect smoke subtests also passed after IPv6 sockaddr
-capture and connect syscall-exit outcome handling were added.
+added. A follow-up root-only eBPF smoke pass was reported on 2026-06-04 after
+runtime-guard self file writes were excluded. IPv4 and IPv6 connect smoke
+subtests also passed after IPv6 sockaddr capture and connect syscall-exit
+outcome handling were added.
 An actual local `llama-server` report also completed successfully after JSON
 Schema output enforcement was added: the response decoded, persisted, and
 rendered through `runtime-guard show`.
@@ -41,6 +43,9 @@ A follow-up 10-minute plugged-in light desktop run with browser activity, nvim,
 tmux, and a one-shot `xclip` pipeline processed 24,244 normalized events with
 zero ring-buffer, syscall-correlation, and persistence drops. That run consumed
 70.687s CPU and peaked at 122.8M memory.
+A 30-minute plugged-in normal-use stress run then completed with zero
+ring-buffer, syscall-correlation, and persistence drops. It ran for 30m5.188s,
+consumed 4m20.815s CPU, and peaked at 162.5M memory.
 
 ## Implemented MVP Surface
 
@@ -154,8 +159,8 @@ Implemented deterministic rules:
   about 31.5M aggregate ring-buffer drops and a 3.5G memory peak. Per-collector
   drop breakdowns isolated the issue to `file_write`, and event summaries showed
   the dominant source was runtime-guard writing its own SQLite WAL/database.
-  After self-PID exclusion, plugged-in idle and light desktop 10-minute
-  all-collector stress runs completed with zero ring-buffer,
+  After self-PID exclusion, plugged-in idle, light desktop, and 30-minute
+  normal-use all-collector stress runs completed with zero ring-buffer,
   syscall-correlation, and persistence drops. Broader stress testing across
   heavier workloads, kernel versions, containers, and network namespaces
   remains.
