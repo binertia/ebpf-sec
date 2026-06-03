@@ -1,0 +1,45 @@
+[Unit]
+Description=Runtime Guard local eBPF runtime security analyst
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/runtime-guard run --db /var/lib/runtime-guard/runtime-guard.db --flush-after 15s
+Restart=on-failure
+RestartSec=2s
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+
+# The MVP runs as root because eBPF raw tracepoints and procfs enrichment are
+# kernel and distribution dependent when attempted with only file capabilities.
+User=root
+Group=root
+UMask=0077
+StateDirectory=runtime-guard
+StateDirectoryMode=0700
+
+# Keep the service writable only where Runtime Guard stores its local SQLite DB.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/runtime-guard
+ProtectHome=read-only
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+# Keep enough privilege for eBPF/procfs operation across common kernels while
+# removing broad capabilities not needed by the MVP.
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+
+LockPersonality=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

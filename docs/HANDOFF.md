@@ -9,6 +9,9 @@ pipeline is runnable without root, deterministic detection and compression are
 implemented, SQLite persistence is hardened, Linux amd64 eBPF collectors are
 present, the live event path uses a bounded async persistence queue, and the
 local LLM client is wired through the CLI.
+Basic packaging assets are present for local service deployment: an install
+guide and a conservative systemd unit that stores data under
+`/var/lib/runtime-guard`.
 
 Root-only eBPF smoke tests passed on a capable Linux amd64 host on 2026-06-03,
 including after connect, file-write, and chmod syscall-exit correlation was
@@ -158,8 +161,8 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 
 ## Recommended Next Task
 
-Run multi-kernel/container stress tests and add packaging assets such as a
-systemd unit, install instructions, and least-privilege capability guidance.
+Run multi-kernel/container stress tests and refine least-privilege service
+deployment on specific target distributions.
 
 ## File Map
 
@@ -176,4 +179,5 @@ internal/report/          terminal-safe rendering
 internal/persistqueue/    bounded async event persistence queue
 testdata/events/          fake normalized event fixtures
 docs/                     plan and this handoff
+packaging/systemd/        local systemd service template
 ```

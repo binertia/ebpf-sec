@@ -71,4 +71,6 @@ is set. If the local server requires an API key, set
 See [`docs/RUNTIME_AI_GUARD_PLAN.md`](docs/RUNTIME_AI_GUARD_PLAN.md) for the
 architecture and phased implementation plan. See
 [`docs/HANDOFF.md`](docs/HANDOFF.md) for the current implementation status,
-known limitations, validation commands, and recommended next task.
+known limitations, validation commands, and recommended next task. See
+[`docs/INSTALL.md`](docs/INSTALL.md) for local service installation and
+systemd deployment notes.
