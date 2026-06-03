@@ -126,7 +126,7 @@ func runDemo(args []string, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := writeAnalyses(context.Background(), out, database, analyses, &reported); err != nil {
+		if err := writeAnalyses(context.Background(), out, database, nil, analyses, &reported); err != nil {
 			return err
 		}
 	}
@@ -134,7 +134,7 @@ func runDemo(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := writeAnalyses(context.Background(), out, database, analyses, &reported); err != nil {
+	if err := writeAnalyses(context.Background(), out, database, nil, analyses, &reported); err != nil {
 		return err
 	}
 
@@ -199,6 +199,7 @@ func runLive(args []string, out io.Writer) (err error) {
 
 	var database *store.SQLite
 	var eventQueue *persistqueue.Queue
+	var incidentQueue *persistqueue.IncidentQueue
 	processor := newProcessor(*flushAfter)
 	var normalizedEvents uint64
 	if *databasePath != "" {
@@ -214,15 +215,27 @@ func runLive(args []string, out io.Writer) (err error) {
 		if err != nil {
 			return err
 		}
+		incidentQueue, err = persistqueue.NewIncidentQueueWithConfig(database, persistqueue.Config{
+			Capacity: *persistBuffer,
+		})
+		if err != nil {
+			return err
+		}
 	}
 	defer func() {
+		if incidentQueue != nil {
+			closeErr := incidentQueue.Close()
+			if err == nil && closeErr != nil {
+				err = closeErr
+			}
+		}
 		if eventQueue != nil {
 			closeErr := eventQueue.Close()
 			if err == nil && closeErr != nil {
 				err = closeErr
 			}
 		}
-		writeLiveStats(out, collector, processor, eventQueue, normalizedEvents)
+		writeLiveStats(out, collector, processor, eventQueue, incidentQueue, normalizedEvents)
 	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -237,6 +250,10 @@ func runLive(args []string, out io.Writer) (err error) {
 	var eventQueueErrors <-chan error
 	if eventQueue != nil {
 		eventQueueErrors = eventQueue.Errors()
+	}
+	var incidentQueueErrors <-chan error
+	if incidentQueue != nil {
+		incidentQueueErrors = incidentQueue.Errors()
 	}
 
 	flushTicker := time.NewTicker(time.Second)
@@ -254,7 +271,7 @@ func runLive(args []string, out io.Writer) (err error) {
 					return err
 				}
 				reported := false
-				if err := writeAnalyses(context.Background(), out, database, analyses, &reported); err != nil {
+				if err := writeAnalyses(context.Background(), out, database, incidentQueue, analyses, &reported); err != nil {
 					return err
 				}
 				return <-collectorErrors
@@ -271,7 +288,7 @@ func runLive(args []string, out io.Writer) (err error) {
 				return err
 			}
 			reported := false
-			if err := writeAnalyses(context.Background(), out, database, analyses, &reported); err != nil {
+			if err := writeAnalyses(context.Background(), out, database, incidentQueue, analyses, &reported); err != nil {
 				return err
 			}
 		case now := <-flushTicker.C:
@@ -280,13 +297,15 @@ func runLive(args []string, out io.Writer) (err error) {
 				return err
 			}
 			reported := false
-			if err := writeAnalyses(context.Background(), out, database, analyses, &reported); err != nil {
+			if err := writeAnalyses(context.Background(), out, database, incidentQueue, analyses, &reported); err != nil {
 				return err
 			}
 		case err := <-eventQueueErrors:
 			return err
+		case err := <-incidentQueueErrors:
+			return err
 		case <-statsTicks:
-			writeLiveStats(out, collector, processor, eventQueue, normalizedEvents)
+			writeLiveStats(out, collector, processor, eventQueue, incidentQueue, normalizedEvents)
 		}
 	}
 }
@@ -319,7 +338,7 @@ func writeLiveEvent(encoder *json.Encoder, event events.Event, quiet bool) error
 	return nil
 }
 
-func writeLiveStats(out io.Writer, collector sensor.Collector, processor *pipeline.Processor, eventQueue *persistqueue.Queue, normalizedEvents uint64) {
+func writeLiveStats(out io.Writer, collector sensor.Collector, processor *pipeline.Processor, eventQueue *persistqueue.Queue, incidentQueue *persistqueue.IncidentQueue, normalizedEvents uint64) {
 	pipelineStats := processor.Stats()
 	var collectorStats sensor.Stats
 	if provider, ok := collector.(sensor.StatsProvider); ok {
@@ -329,10 +348,15 @@ func writeLiveStats(out io.Writer, collector sensor.Collector, processor *pipeli
 	if eventQueue != nil {
 		queueStats = eventQueue.Stats()
 	}
-	fmt.Fprintf(out, "runtime stats: normalized=%d grouped=%d analyzed=%d incidents=%d ring_dropped=%d correlation_dropped=%d persist_received=%d persist_enqueued=%d persisted=%d persist_dropped=%d",
+	var incidentQueueStats persistqueue.Stats
+	if incidentQueue != nil {
+		incidentQueueStats = incidentQueue.Stats()
+	}
+	fmt.Fprintf(out, "runtime stats: normalized=%d grouped=%d analyzed=%d incidents=%d ring_dropped=%d correlation_dropped=%d persist_received=%d persist_enqueued=%d persisted=%d persist_dropped=%d incident_persist_received=%d incident_persist_enqueued=%d incident_persisted=%d incident_persist_dropped=%d",
 		normalizedEvents, pipelineStats.GroupedCandidates, pipelineStats.AnalyzedCandidates,
 		pipelineStats.Incidents, collectorStats.RingBufferDropped, collectorStats.CorrelationDropped, queueStats.Received,
-		queueStats.Enqueued, queueStats.Persisted, queueStats.Dropped)
+		queueStats.Enqueued, queueStats.Persisted, queueStats.Dropped, incidentQueueStats.Received,
+		incidentQueueStats.Enqueued, incidentQueueStats.Persisted, incidentQueueStats.Dropped)
 	if detailProvider, ok := collector.(sensor.StatsDetailProvider); ok {
 		details := detailProvider.StatsByCollector()
 		fmt.Fprintf(out, " collector_ring_dropped=%s collector_correlation_dropped=%s",
@@ -367,11 +391,18 @@ func newProcessor(inactivityTimeout time.Duration) *pipeline.Processor {
 	}, detect.NewBasic(), compress.NewBasic())
 }
 
-func writeAnalyses(ctx context.Context, out io.Writer, database *store.SQLite, analyses []pipeline.Analysis, reported *bool) error {
+func writeAnalyses(ctx context.Context, out io.Writer, database *store.SQLite, incidentQueue *persistqueue.IncidentQueue, analyses []pipeline.Analysis, reported *bool) error {
 	for _, analysis := range analyses {
 		if database != nil {
-			if err := database.SaveIncidentWithEvents(ctx, analysis.Incident, analysis.Events); err != nil {
-				return err
+			if incidentQueue != nil {
+				incidentQueue.Enqueue(persistqueue.IncidentRecord{
+					Incident: analysis.Incident,
+					Events:   analysis.Events,
+				})
+			} else {
+				if err := database.SaveIncidentWithEvents(ctx, analysis.Incident, analysis.Events); err != nil {
+					return err
+				}
 			}
 		}
 		if *reported {

@@ -42,20 +42,20 @@ SQLite uses WAL mode. New database files are created with `0600` permissions;
 existing database paths must be private regular files rather than symlinks.
 The database parent directory must be owned by the running user and must not
 permit group or other writes.
-The live collector also accepts `--db "$DB"` to persist normalized
-events through a bounded async queue while streaming them. Supporting evidence
-for an incident is upserted transactionally before links are created. A bounded in-memory
-processor groups live process trees and flushes inactive candidates into
-deterministic incidents. Tune its default 15-second inactivity threshold with
-`--flush-after`. Use `--quiet-events` for service-style runs that should print
-incidents and stats without per-event JSON. Tune periodic stats with
+The live collector also accepts `--db "$DB"` to persist normalized events and
+incidents through bounded async queues while streaming them. Supporting evidence
+for an incident is upserted transactionally before links are created. A bounded
+in-memory processor groups live process trees and flushes inactive candidates
+into deterministic incidents. Tune its default 15-second inactivity threshold
+with `--flush-after`. Use `--quiet-events` for service-style runs that should
+print incidents and stats without per-event JSON. Tune periodic stats with
 `--stats-interval`; `0` disables periodic stats but still prints final shutdown
 stats. Burst buffers can be tuned with `--event-buffer`, `--persist-buffer`,
 `--persist-batch-size`, and `--ring-buffer-size`. Active candidates retain at
 most 4096 recent events each and 65536 events in total. Compressed incident
 reports expose dropped older events. Live collection prints ingestion,
-analysis, persistence, kernel ring-buffer drop, and syscall-correlation-drop
-counters every 10 seconds by default and at shutdown.
+analysis, event and incident persistence, kernel ring-buffer drop, and
+syscall-correlation-drop counters every 10 seconds by default and at shutdown.
 
 Analyze a stored incident with a local `llama-server`-compatible HTTP endpoint:
 

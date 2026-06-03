@@ -6,6 +6,10 @@ any cloud service by default.
 
 ## Build
 
+The module pins `toolchain go1.26.4` because `go1.26.3` has reachable standard
+library vulnerability findings. Keep `GOTOOLCHAIN=auto` enabled or install Go
+`1.26.4` or newer before building.
+
 ```sh
 go test ./...
 go build -trimpath -o ./bin/runtime-guard ./cmd/runtime-guard
@@ -141,10 +145,11 @@ scripts/systemd-stress.sh --duration 30m --stats-interval 1m
 The stress helper uses the same sandbox and tuned buffer settings as the
 packaged service. It does not install the service or generate artificial load.
 Track the final `runtime stats` line, CPU time, memory peak, and whether
-`ring_dropped`, `correlation_dropped`, or `persist_dropped` remain zero. If
-ring drops are nonzero, also capture `collector_ring_dropped` so the noisy
-collector can be tuned directly. Record whether the host was plugged in or on
-battery and whether it was idle or running other workload during the test.
+`ring_dropped`, `correlation_dropped`, `persist_dropped`, or
+`incident_persist_dropped` remain zero. If ring drops are nonzero, also capture
+`collector_ring_dropped` so the noisy collector can be tuned directly. Record
+whether the host was plugged in or on battery and whether it was idle or running
+other workload during the test.
 If drops return, use `event-summary` against the stress database to inspect the
 stored sample of high-volume processes and paths:
 

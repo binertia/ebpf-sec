@@ -1,6 +1,6 @@
 # Runtime Guard Handoff
 
-Updated: 2026-06-03
+Updated: 2026-06-04
 
 ## Current State
 
@@ -12,8 +12,8 @@ local LLM client is wired through the CLI. Live service runs expose tunable
 collector-to-analyzer, async persistence queue, async persistence batch,
 per-collector eBPF ring-buffer sizes, and explicit collector selection for
 isolating high-volume sources.
-The async event persistence queue applies a bounded per-event save timeout and
-transitions to a closed/drop state on the first persistence error.
+The async event and incident persistence queues apply bounded save timeouts and
+transition to a closed/drop state on the first persistence error.
 Basic packaging assets are present for local service deployment: an install
 guide and a conservative systemd unit that stores data under
 `/var/lib/runtime-guard`, suppresses per-event JSON with `--quiet-events`, and
@@ -113,15 +113,16 @@ Implemented deterministic rules:
   globally. Dropped older history is reported in the incident JSON and CLI.
 - Incident storage upserts its supporting evidence rows and incident links in
   one transaction, independent of async event-queue timing.
-- Async event persistence uses a default 10-second bounded save timeout. SQLite
-  persistence is batched when possible, while persistence errors are still
-  surfaced through the queue error channel and future enqueue attempts are
-  dropped instead of being buffered without a worker. Failed and
-  buffered-but-unpersisted events are counted as dropped.
+- Async event and incident persistence use a default 10-second bounded save
+  timeout. SQLite event persistence is batched when possible, while persistence
+  errors are still surfaced through queue error channels and future enqueue
+  attempts are dropped instead of being buffered without a worker. Failed and
+  buffered-but-unpersisted records are counted as dropped.
 - The live CLI reports normalized, grouped, analyzed, incident, kernel
-  ring-buffer-drop, syscall-correlation-drop, and event-persistence counters
-  every 10 seconds by default and at shutdown. It also reports per-collector
-  ring-buffer and syscall-correlation drop breakdowns for tuning.
+  ring-buffer-drop, syscall-correlation-drop, event-persistence, and
+  incident-persistence counters every 10 seconds by default and at shutdown. It
+  also reports per-collector ring-buffer and syscall-correlation drop
+  breakdowns for tuning.
 - `runtime-guard event-summary --type file_write` summarizes stored event
   volume by process/executable and file path so stress databases can identify
   high-volume file-write sources without manual SQLite queries.
@@ -145,9 +146,9 @@ Implemented deterministic rules:
 
 ## Known Limitations
 
-- Event persistence is asynchronous, but incident writes remain synchronous.
-  A slow disk can still delay incident reporting even though live ingestion is
-  no longer blocked on per-event SQLite writes.
+- Queued incident persistence avoids blocking live ingestion on incident SQLite
+  writes, but a full or failed incident queue can still drop incident database
+  writes. Watch `incident_persist_dropped` in runtime stats.
 - Container fields are populated best-effort from procfs cgroup and container
   hostname data when available. This is a bounded PID/start-time cache; the
   hostname is not guaranteed to match the container-runtime display name.

@@ -28,6 +28,10 @@ CREATE INDEX IF NOT EXISTS events_process_idx
     ON events(host, container_id, pid, timestamp);
 CREATE INDEX IF NOT EXISTS events_file_path_idx
     ON events(file_path, timestamp);
+CREATE INDEX IF NOT EXISTS events_type_process_idx
+    ON events(event_type, process_name, executable_path);
+CREATE INDEX IF NOT EXISTS events_type_file_path_idx
+    ON events(event_type, file_path);
 
 CREATE TABLE IF NOT EXISTS incidents (
     incident_id TEXT PRIMARY KEY,

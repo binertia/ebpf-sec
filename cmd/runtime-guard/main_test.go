@@ -68,7 +68,7 @@ func TestWriteLiveStats(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	writeLiveStats(&output, statsRuntimeCollector{}, processor, nil, 1)
+	writeLiveStats(&output, statsRuntimeCollector{}, processor, nil, nil, 1)
 	for _, expected := range []string{
 		"normalized=1",
 		"grouped=1",
