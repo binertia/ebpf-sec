@@ -6,12 +6,12 @@ Updated: 2026-06-04
 
 Runtime Guard is **100% complete for the planned MVP**. The fake-event
 pipeline is runnable without root, deterministic detection and compression are
-implemented, SQLite persistence is hardened, Linux amd64/native-arm64 eBPF collectors are
-present, the live event path uses a bounded async persistence queue, and the
-local LLM client is wired through the CLI. Live service runs expose tunable
-collector-to-analyzer, async persistence queue, async persistence batch,
-per-collector eBPF ring-buffer sizes, and explicit collector selection for
-isolating high-volume sources.
+implemented, SQLite persistence is hardened, Linux amd64/native-arm64 eBPF
+collectors are present, the live event path uses a bounded async persistence
+queue, and the local LLM client is wired through the CLI. Live service runs
+expose tunable collector-to-analyzer, async persistence queue, async persistence
+batch, per-collector eBPF ring-buffer sizes, and explicit collector selection
+for isolating high-volume sources.
 The async event and incident persistence queues apply bounded save timeouts and
 transition to a closed/drop state on the first persistence error.
 Basic packaging assets are present for local service deployment: an install
@@ -56,6 +56,47 @@ memory.
 Native arm64 support has compile coverage and a separate experimental VPS
 runbook in [`ARM_TEST.md`](ARM_TEST.md). Real arm64 smoke/stress validation is
 not blocking the next amd64 hardening task.
+
+Recent signed production-hardening commits after `origin/main`:
+
+- `7d7e3cd` documents the separate arm64 VPS validation experiment.
+- `43f081c` adds the multi-host stress validation workflow.
+- `b0688ac` checks sudo access before building systemd test artifacts.
+- `8c711d4` adds saved-log stress validation summarization.
+- `9473509` makes systemd smoke/stress helpers fail closed on missing or
+  nonzero validation drop counters.
+
+The current handoff target is a production/distribution-grade release. The
+approximate readiness is:
+
+- MVP feature surface: **100% complete**.
+- Personal Debian amd64 install readiness: **90-95% complete**.
+- Debian/Ubuntu amd64 production release: **70-75% complete**.
+- Broad production/distribution-grade release: **60-65% complete**.
+- Multi-distro amd64 plus production arm64 release: **55-60% complete**.
+
+The remaining percentage is mostly release engineering and validation, not core
+MVP functionality.
+
+## Remaining Production Work
+
+Before calling this distribution-grade, finish these tracks:
+
+- Run the multi-host validation matrix in [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md)
+  on at least Debian stable, Ubuntu LTS, and one container-host or stricter
+  kernel/procfs environment.
+- Validate install, service start, normal-use stress, log inspection, stop,
+  uninstall, and rollback on a fresh target host.
+- Add release artifacts: versioned binaries or packages, checksums, signatures,
+  and reproducible build notes.
+- Add release automation or CI that runs `go test`, `go vet`, `go test -race`,
+  eBPF smoke compile, and `govulncheck`.
+- Document operational policy for SQLite database growth, retention, backup,
+  compaction, and log retention.
+- Decide the release claim for arm64. Keep it experimental unless a native
+  arm64 host completes the smoke/stress runbook in [`ARM_TEST.md`](ARM_TEST.md).
+- Complete dependency/license review before publishing packages for other
+  users.
 
 ## Implemented MVP Surface
 
@@ -210,13 +251,17 @@ go test -race ./...
 GOCACHE=/tmp/runtime-guard-gocache \
 GOMODCACHE=/tmp/runtime-guard-gomodcache \
 go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
+
+GOCACHE=/tmp/runtime-guard-gocache \
+GOMODCACHE=/tmp/runtime-guard-gomodcache \
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 ```
 
-All commands above passed on 2026-06-03 after the async persistence timeout and
-shared eBPF reader shutdown helper were added. The tagged smoke command verifies
-compilation only. Root smoke tests also passed on a BPF-capable Linux amd64
-host on 2026-06-03 after the shared eBPF reader shutdown helper was added,
-including the connect syscall-exit correlation path:
+All commands above passed on 2026-06-04 after the validation helper hardening
+was added; `govulncheck` reported no vulnerabilities. The tagged smoke command
+verifies compilation only. Root smoke tests also passed on a BPF-capable Linux
+amd64 host on 2026-06-03 after the shared eBPF reader shutdown helper was
+added, including the connect syscall-exit correlation path:
 
 ```sh
 sudo go test -tags=ebpf_smoke ./internal/ebpf \
@@ -266,9 +311,15 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 
 ## Recommended Next Task
 
-Run multi-kernel/container stress tests and refine least-privilege service
-deployment on specific target distributions using
-[`STRESS_VALIDATION.md`](STRESS_VALIDATION.md).
+1. Push or otherwise back up the signed commits after `origin/main`.
+2. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu
+   LTS amd64 VM or VPS as the first external target.
+3. Save the full helper output and summarize it with
+   `scripts/validation-summary.sh`.
+4. If the Ubuntu run passes with zero required drops, repeat on a container host
+   or stricter kernel/procfs environment.
+5. Start packaging/release automation only after at least Debian and Ubuntu
+   amd64 pass the same smoke/stress criteria.
 
 ## File Map
 
