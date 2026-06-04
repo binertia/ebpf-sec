@@ -63,6 +63,17 @@ ended with zero ring-buffer, syscall-correlation, event-persistence, and
 incident-persistence drops. Per-collector ring-buffer and correlation drops
 were also zero for `execve`, `connect`, `file_write`, and `chmod`. It ran for
 30m5.283s, consumed 5m17.918s CPU, and peaked at 246.6M memory.
+External x86_64 VPS validation then covered Debian Bookworm, Ubuntu 22.04 LTS,
+and Ubuntu 24.04 LTS on Vultr VMs. Debian Bookworm completed a 30-minute
+systemd stress run with 151 normalized events, one persisted incident, and zero
+ring-buffer, syscall-correlation, event-persistence, and incident-persistence
+drops. Ubuntu 24.04 completed the Debian package lifecycle smoke with 324
+normalized events, one persisted incident, clean package service stop/removal,
+and zero required drops. Ubuntu 22.04 completed the same package lifecycle smoke
+after the journal timestamp compatibility fix with 72 normalized events, clean
+package service stop/removal, and zero required drops. These VPS runs were very
+idle, so they validate package/systemd/capability compatibility more than
+sustained workload behavior.
 Native arm64 support has compile coverage and a separate experimental VPS
 runbook in [`ARM_TEST.md`](ARM_TEST.md). Real arm64 smoke/stress validation is
 not blocking the next amd64 hardening task.
@@ -95,9 +106,9 @@ approximate readiness is:
 
 - MVP feature surface: **100% complete**.
 - Personal Debian amd64 install readiness: **93-96% complete**.
-- Debian/Ubuntu amd64 production release: **75-80% complete**.
-- Broad production/distribution-grade release: **65-70% complete**.
-- Multi-distro amd64 plus production arm64 release: **58-63% complete**.
+- Debian/Ubuntu amd64 production release: **82-87% complete**.
+- Broad production/distribution-grade release: **70-75% complete**.
+- Multi-distro amd64 plus production arm64 release: **60-65% complete**.
 
 The remaining percentage is mostly release engineering and validation, not core
 MVP functionality.
@@ -106,14 +117,13 @@ MVP functionality.
 
 Before calling this distribution-grade, finish these tracks:
 
-- Run the multi-host validation matrix in [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md)
-  on at least Debian stable, Ubuntu LTS, and one container-host or stricter
-  kernel/procfs environment.
-- Validate install, service start, normal-use stress, log inspection, stop,
-  uninstall, and rollback on a fresh target host. Use
-  `scripts/package-install-smoke.sh` for the first Debian/Ubuntu package
-  lifecycle pass, preferably inside `tmux` on SSH hosts so cleanup and logging
-  survive client disconnects.
+- Repeat the multi-host validation matrix in [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md)
+  under a busier normal workload on at least one Debian/Ubuntu VPS, because the
+  first external VPS passes were mostly idle.
+- Validate one container-host or stricter kernel/procfs environment.
+- Preserve full fresh-host package lifecycle logs for Debian Bookworm,
+  Ubuntu 22.04, and Ubuntu 24.04, including host fingerprint, release gate,
+  root smoke, systemd smoke/stress, and package smoke outputs.
 - Extend release artifacts beyond the initial tarball and Debian package
   builders if `.rpm` is required. The current builders honor
   `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package
@@ -366,16 +376,16 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
    review the dependency/license inventory.
 4. Generate `scripts/release-manifest.sh --dir dist --sign` and verify the
    published `SHA256SUMS` plus `SHA256SUMS.asc` on a clean machine.
-5. Run `scripts/package-install-smoke.sh --duration 10m --yes` on a fresh
-   Debian or Ubuntu VM/VPS to validate the actual package lifecycle.
-6. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu
-   LTS amd64 VM or VPS as the first external target.
-7. Save the full helper output and summarize it with
+5. Save the full Debian Bookworm, Ubuntu 22.04, and Ubuntu 24.04 VPS logs under
+   a local validation directory and copy the final summaries into release notes.
+6. Repeat `scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes`
+   on at least one VPS while applying light normal activity, then summarize it
+   with `scripts/validation-summary.sh`.
+7. Validate one container host or stricter kernel/procfs environment.
+8. Save every full helper output and summarize it with
    `scripts/validation-summary.sh`.
-8. If the Ubuntu run passes with zero required drops, repeat on a container host
-   or stricter kernel/procfs environment.
-9. Start package-format work only after at least Debian and Ubuntu
-   amd64 pass the same smoke/stress criteria.
+9. Start `.rpm` or broader package-format work only after the busier VPS pass
+   and container/strict-host pass both have zero required drops.
 
 ## File Map
 
