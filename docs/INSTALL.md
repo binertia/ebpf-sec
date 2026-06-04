@@ -73,7 +73,9 @@ The package smoke helper refuses existing Runtime Guard installs by default,
 installs a temporary package, verifies that the service was not auto-started or
 enabled, starts the packaged service, validates final drop counters, stops the
 service, removes the package, and leaves `/var/lib/runtime-guard` for
-inspection unless `--purge-state` is supplied.
+inspection unless `--purge-state` is supplied. Run it inside `tmux` or another
+persistent session on SSH hosts so a client disconnect does not interrupt the
+package cleanup path.
 
 Before publishing artifacts, generate a single checksum manifest for the built
 tarball and Debian package. Add `--sign` to write and verify an armored detached

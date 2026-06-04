@@ -128,22 +128,44 @@ stop_service_if_started() {
 	fi
 }
 
+start_sudo_keepalive() {
+	(
+		while true; do
+			sleep 60
+			sudo -n true >/dev/null 2>&1 || exit 0
+		done
+	) &
+	sudo_keepalive_pid=$!
+}
+
+stop_sudo_keepalive() {
+	if [[ -n "${sudo_keepalive_pid:-}" ]]; then
+		kill "$sudo_keepalive_pid" >/dev/null 2>&1 || true
+		wait "$sudo_keepalive_pid" >/dev/null 2>&1 || true
+		sudo_keepalive_pid=""
+	fi
+}
+
 remove_package_if_installed() {
 	if [[ "$installed_package" -eq 1 && "$keep_installed" -ne 1 ]]; then
-		sudo dpkg -r runtime-guard >/dev/null 2>&1 || true
-		sudo systemctl daemon-reload >/dev/null 2>&1 || true
+		if ! sudo dpkg -r runtime-guard; then
+			echo "normal package removal failed; attempting forced purge cleanup" >&2
+			sudo dpkg --purge --force-remove-reinstreq runtime-guard || true
+		fi
+		sudo systemctl daemon-reload || true
 		installed_package=0
 	fi
 }
 
 cleanup() {
 	local status=$?
-	trap - EXIT INT TERM
+	trap - EXIT INT TERM HUP
 	stop_service_if_started
 	remove_package_if_installed
 	if [[ "$purge_state" -eq 1 ]]; then
 		sudo rm -rf -- "$state_dir" >/dev/null 2>&1 || true
 	fi
+	stop_sudo_keepalive
 	if [[ -n "${tmp_dir:-}" && "$tmp_dir" == /tmp/runtime-guard-package-install.* ]]; then
 		rm -rf -- "$tmp_dir"
 	fi
@@ -189,6 +211,7 @@ fi
 
 started_service=0
 installed_package=0
+sudo_keepalive_pid=""
 tmp_dir=""
 
 refuse_existing_runtime_guard
@@ -231,7 +254,8 @@ if [[ "$assume_yes" -ne 1 ]]; then
 fi
 
 runtime_guard_require_sudo_access
-trap cleanup EXIT INT TERM
+start_sudo_keepalive
+trap cleanup EXIT INT TERM HUP
 
 tmp_dir="$(mktemp -d /tmp/runtime-guard-package-install.XXXXXX)"
 deb_out="$tmp_dir/deb"

@@ -112,7 +112,8 @@ Before calling this distribution-grade, finish these tracks:
 - Validate install, service start, normal-use stress, log inspection, stop,
   uninstall, and rollback on a fresh target host. Use
   `scripts/package-install-smoke.sh` for the first Debian/Ubuntu package
-  lifecycle pass.
+  lifecycle pass, preferably inside `tmux` on SSH hosts so cleanup and logging
+  survive client disconnects.
 - Extend release artifacts beyond the initial tarball and Debian package
   builders if `.rpm` is required. The current builders honor
   `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package

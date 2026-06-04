@@ -72,6 +72,10 @@ the actual Debian package lifecycle:
 scripts/package-install-smoke.sh --duration 10m --yes
 ```
 
+Run package lifecycle validation inside `tmux` or another persistent session on
+SSH hosts. The helper attempts cleanup on exit, termination, and hangup, but a
+persistent session makes the resulting log and package state easier to audit.
+
 Save logs when comparing hosts:
 
 ```sh
