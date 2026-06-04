@@ -142,6 +142,10 @@ Implemented deterministic rules:
   operation while still printing incidents and periodic stats.
 - `runtime-guard run --stats-interval` controls periodic runtime stats; `0`
   disables periodic stats while preserving final shutdown stats.
+- The transient systemd smoke and stress helpers accept `--capabilities` so a
+  narrower `CapabilityBoundingSet` can be validated before applying a real
+  service override. The packaged unit keeps the broader compatibility set until
+  a host-specific narrower set has passed smoke and stress.
 - The MVP never automatically kills, blocks, or remediates processes.
 
 ## Known Limitations

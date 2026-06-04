@@ -3,21 +3,32 @@ set -euo pipefail
 
 usage() {
 	cat <<'EOF'
-Usage: scripts/systemd-smoke.sh [--yes]
+Usage: scripts/systemd-smoke.sh [--capabilities "CAP_BPF CAP_PERFMON ..."] [--yes]
 
 Builds a temporary runtime-guard binary and runs it under a transient systemd
 unit using the packaged service sandbox settings. This does not install,
 replace, enable, or stop the real runtime-guard.service.
 
 Options:
+  --capabilities LIST  Space-separated CapabilityBoundingSet value to test.
+                       Default keeps the packaged service capability set.
   --yes    Skip the interactive confirmation prompt.
   --help   Show this help.
 EOF
 }
 
+capabilities="CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE"
 assume_yes=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+	--capabilities)
+		if [[ $# -lt 2 ]]; then
+			echo "--capabilities requires a value" >&2
+			exit 2
+		fi
+		capabilities="$2"
+		shift 2
+		;;
 	--yes)
 		assume_yes=1
 		shift
@@ -34,6 +45,20 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+validate_capabilities() {
+	if [[ -z "$1" ]]; then
+		echo "--capabilities must not be empty" >&2
+		exit 2
+	fi
+	local capability
+	for capability in $1; do
+		if [[ ! "$capability" =~ ^CAP_[A-Z0-9_]+$ ]]; then
+			echo "invalid capability in --capabilities: $capability" >&2
+			exit 2
+		fi
+	done
+}
+
 require_command() {
 	if ! command -v "$1" >/dev/null 2>&1; then
 		echo "missing required command: $1" >&2
@@ -46,6 +71,7 @@ require_command sudo
 require_command systemd-run
 require_command systemctl
 require_command journalctl
+validate_capabilities "$capabilities"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 case "$repo_root" in
@@ -71,6 +97,7 @@ Will:
   - build: $binary
   - build runner: $runner_script
   - start transient unit: $service_unit
+  - capabilities: $capabilities
   - write only inside service state: $state_dir
   - leave the real runtime-guard.service untouched
 
@@ -167,7 +194,7 @@ systemd_args=(
 	-p PrivateTmp=yes
 	-p NoNewPrivileges=yes
 	-p SystemCallArchitectures=native
-	-p 'CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE'
+	-p "CapabilityBoundingSet=$capabilities"
 	-p LockPersonality=yes
 	-p MemoryDenyWriteExecute=yes
 	-p ProtectClock=yes

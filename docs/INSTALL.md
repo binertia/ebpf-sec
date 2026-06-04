@@ -106,6 +106,30 @@ combination of:
 Do not assume a file-capability deployment is equivalent to the root service
 until the root-only smoke tests and live enrichment have been revalidated.
 
+To test a narrower capability set without changing the installed service, pass
+`--capabilities` to the transient systemd helpers. Start with the modern kernel
+set, then add back compatibility capabilities only if the smoke test fails:
+
+```sh
+scripts/systemd-smoke.sh \
+  --capabilities "CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE"
+
+scripts/systemd-smoke.sh \
+  --capabilities "CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE"
+
+scripts/systemd-smoke.sh \
+  --capabilities "CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE"
+```
+
+After the narrowest passing smoke set is known, repeat the normal stress test
+with the same `--capabilities` value. Only apply a narrower service override
+after both smoke and stress runs pass with zero drop counters:
+
+```ini
+[Service]
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE
+```
+
 ## Root Smoke Test
 
 Run the eBPF smoke tests before enabling the service on a new host:
@@ -131,7 +155,8 @@ The script builds a unique `bin/runtime-guard-smoke-*` binary and generated
 runner, starts a unique `runtime-guard-smoke-*` transient unit, writes only to
 that unit's private `/var/lib/runtime-guard-smoke-*` state directory, prints the
 service status or unload note plus journal, and leaves the real
-`runtime-guard.service` untouched.
+`runtime-guard.service` untouched. Use `--capabilities` here to validate a
+narrower `CapabilityBoundingSet` before creating a real service override.
 
 ## Systemd Stress Test
 
@@ -143,7 +168,8 @@ scripts/systemd-stress.sh --duration 30m --stats-interval 1m
 ```
 
 The stress helper uses the same sandbox and tuned buffer settings as the
-packaged service. It does not install the service or generate artificial load.
+packaged service unless `--capabilities` is supplied for least-privilege
+validation. It does not install the service or generate artificial load.
 Track the final `runtime stats` line, CPU time, memory peak, and whether
 `ring_dropped`, `correlation_dropped`, `persist_dropped`, or
 `incident_persist_dropped` remain zero. If ring drops are nonzero, also capture

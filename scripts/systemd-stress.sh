@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
 	cat <<'EOF'
-Usage: scripts/systemd-stress.sh [--duration 30m] [--stats-interval 1m] [--collectors all] [--file-write-min-bytes 0] [--yes]
+Usage: scripts/systemd-stress.sh [--duration 30m] [--stats-interval 1m] [--collectors all] [--file-write-min-bytes 0] [--capabilities "CAP_BPF CAP_PERFMON ..."] [--yes]
 
 Builds a temporary runtime-guard binary and runs it under a transient systemd
 unit using the packaged service sandbox and tuned buffer settings. This is a
@@ -17,6 +17,8 @@ Options:
                              Default: all.
   --file-write-min-bytes N   Minimum successful bytes for file_write events.
                              Default: 0, which captures all completed writes.
+  --capabilities LIST        Space-separated CapabilityBoundingSet value to test.
+                             Default keeps the packaged service capability set.
   --yes                      Skip the interactive confirmation prompt.
   --help                     Show this help.
 EOF
@@ -26,6 +28,7 @@ duration=30m
 stats_interval=1m
 collectors=all
 file_write_min_bytes=0
+capabilities="CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE"
 assume_yes=0
 
 while [[ $# -gt 0 ]]; do
@@ -62,6 +65,14 @@ while [[ $# -gt 0 ]]; do
 		file_write_min_bytes="$2"
 		shift 2
 		;;
+	--capabilities)
+		if [[ $# -lt 2 ]]; then
+			echo "--capabilities requires a value" >&2
+			exit 2
+		fi
+		capabilities="$2"
+		shift 2
+		;;
 	--yes)
 		assume_yes=1
 		shift
@@ -77,6 +88,20 @@ while [[ $# -gt 0 ]]; do
 		;;
 	esac
 done
+
+validate_capabilities() {
+	if [[ -z "$1" ]]; then
+		echo "--capabilities must not be empty" >&2
+		exit 2
+	fi
+	local capability
+	for capability in $1; do
+		if [[ ! "$capability" =~ ^CAP_[A-Z0-9_]+$ ]]; then
+			echo "invalid capability in --capabilities: $capability" >&2
+			exit 2
+		fi
+	done
+}
 
 require_command() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -100,6 +125,7 @@ if ! timeout "$stats_interval" true >/dev/null 2>&1; then
 	echo "invalid --stats-interval for timeout/sleep: $stats_interval" >&2
 	exit 2
 fi
+validate_capabilities "$capabilities"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 case "$repo_root" in
@@ -129,6 +155,7 @@ Will:
   - stats interval: $stats_interval
   - collectors: $collectors
   - file write minimum bytes: $file_write_min_bytes
+  - capabilities: $capabilities
   - write only inside service state: $state_dir
   - leave the real runtime-guard.service untouched
 
@@ -235,7 +262,7 @@ systemd_args=(
 	-p PrivateTmp=yes
 	-p NoNewPrivileges=yes
 	-p SystemCallArchitectures=native
-	-p 'CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE'
+	-p "CapabilityBoundingSet=$capabilities"
 	-p LockPersonality=yes
 	-p MemoryDenyWriteExecute=yes
 	-p ProtectClock=yes
