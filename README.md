@@ -100,6 +100,12 @@ To build a version-stamped release tarball for the current Linux architecture:
 scripts/build-release.sh --version v0.1.0
 ```
 
+To build a Debian package for the current Linux architecture:
+
+```sh
+scripts/build-deb.sh --version v0.1.0
+```
+
 To generate the dependency/license inventory:
 
 ```sh

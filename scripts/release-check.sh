@@ -55,6 +55,8 @@ require_command go
 
 export GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}"
 export GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}"
+artifact_check_dir="$(mktemp -d)"
+trap 'rm -rf "$artifact_check_dir"' EXIT
 
 run go version
 run git diff --check
@@ -63,6 +65,7 @@ run bash -n \
 	scripts/dependency-review.sh \
 	scripts/release-check.sh \
 	scripts/build-release.sh \
+	scripts/build-deb.sh \
 	scripts/systemd-helper-lib.sh \
 	scripts/systemd-smoke.sh \
 	scripts/systemd-stress.sh \
@@ -71,6 +74,13 @@ run go test ./...
 run go vet ./...
 run go test -race ./...
 run go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
+run scripts/build-release.sh --version 0.0.0-ci --out "$artifact_check_dir/tar"
+if command -v dpkg-deb >/dev/null 2>&1; then
+	run scripts/build-deb.sh --version 0.0.0-ci --out "$artifact_check_dir/deb"
+else
+	echo
+	echo "===== Debian package build skipped: dpkg-deb unavailable ====="
+fi
 
 if [[ "$skip_vuln" -eq 0 ]]; then
 	if command -v govulncheck >/dev/null 2>&1; then

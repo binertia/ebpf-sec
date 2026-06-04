@@ -87,9 +87,9 @@ Before calling this distribution-grade, finish these tracks:
   kernel/procfs environment.
 - Validate install, service start, normal-use stress, log inspection, stop,
   uninstall, and rollback on a fresh target host.
-- Extend release artifacts beyond the initial version-stamped tarball/checksum
-  builder if `.deb`, `.rpm`, detached signatures, or reproducible build notes
-  are required.
+- Extend release artifacts beyond the initial tarball and Debian package
+  builders if `.rpm`, detached signatures, or reproducible build notes are
+  required.
 - Expand release automation beyond the initial CI gate if publishing packages
   requires multiple architectures or package formats.
 - Validate the operational policy in [`OPERATIONS.md`](OPERATIONS.md) under an
@@ -324,8 +324,9 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 ## Recommended Next Task
 
 1. Push or otherwise back up the signed commits after `origin/main`.
-2. Run `scripts/build-release.sh --version v0.1.0` once on the release host and
-   inspect the generated tarball and `runtime-guard version` output.
+2. Run `scripts/build-release.sh --version v0.1.0` and
+   `scripts/build-deb.sh --version v0.1.0` once on the release host, then
+   inspect the generated artifacts and `runtime-guard version` output.
 3. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
    review the dependency/license inventory.
 4. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu

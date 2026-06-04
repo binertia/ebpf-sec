@@ -20,6 +20,7 @@ For release artifacts, use the repository build script. It stamps
 
 ```sh
 scripts/build-release.sh --version v0.1.0
+scripts/build-deb.sh --version v0.1.0
 ```
 
 Linux amd64 and native arm64 are supported for live eBPF collection. Build release
@@ -45,6 +46,16 @@ Confirm the installed binary runs:
 /usr/local/bin/runtime-guard --help
 /usr/local/bin/runtime-guard version
 ```
+
+If using the generated Debian package, install it with:
+
+```sh
+sudo apt install ./dist/runtime-guard_0.1.0_amd64.deb
+```
+
+The package installs `/usr/bin/runtime-guard` and
+`/lib/systemd/system/runtime-guard.service`, but does not enable or start the
+service automatically.
 
 ## Install Systemd Service
 
