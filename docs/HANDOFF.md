@@ -59,6 +59,10 @@ not blocking the next amd64 hardening task.
 
 Recent signed production-hardening commits after `origin/main`:
 
+- `2bc4c12` makes Debian package maintainer metadata configurable.
+- `48faeab` adds the combined release checksum manifest and optional detached
+  GPG signing workflow.
+- `0099cee` adds the fresh-host Debian/Ubuntu package install smoke helper.
 - `7bb1f7e` hardens release artifact verification and repeatable build
   metadata/timestamps.
 - `60dd26d` adds the Debian package builder.
@@ -72,13 +76,9 @@ Recent signed production-hardening commits after `origin/main`:
 - `8c711d4` adds saved-log stress validation summarization.
 - `9473509` makes systemd smoke/stress helpers fail closed on missing or
   nonzero validation drop counters.
-The current working release track also includes
-`scripts/package-install-smoke.sh`, a fresh-host Debian/Ubuntu package
-lifecycle helper that installs the generated package, verifies it does not
-auto-start or auto-enable, starts the packaged service, validates final drop
-counters, stops it, and removes the package by default. Release artifact
-publication now has `scripts/release-manifest.sh` for a single sorted
-`SHA256SUMS` manifest and optional armored detached GPG signature.
+The release helpers now cover fresh-host package lifecycle validation, combined
+checksum manifest generation, optional armored detached GPG signing, and
+configurable Debian maintainer metadata.
 
 The current handoff target is a production/distribution-grade release. The
 approximate readiness is:
