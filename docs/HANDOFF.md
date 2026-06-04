@@ -59,12 +59,24 @@ not blocking the next amd64 hardening task.
 
 Recent signed production-hardening commits after `origin/main`:
 
+- `7bb1f7e` hardens release artifact verification and repeatable build
+  metadata/timestamps.
+- `60dd26d` adds the Debian package builder.
+- `d05ef5e` adds database operations stats.
+- `6ecf2ff` adds the dependency/license review gate.
+- `0e65696` adds versioned release artifact builds.
+- `7b64d56` adds the CI release gate.
 - `7d7e3cd` documents the separate arm64 VPS validation experiment.
 - `43f081c` adds the multi-host stress validation workflow.
 - `b0688ac` checks sudo access before building systemd test artifacts.
 - `8c711d4` adds saved-log stress validation summarization.
 - `9473509` makes systemd smoke/stress helpers fail closed on missing or
   nonzero validation drop counters.
+The current working release track also includes
+`scripts/package-install-smoke.sh`, a fresh-host Debian/Ubuntu package
+lifecycle helper that installs the generated package, verifies it does not
+auto-start or auto-enable, starts the packaged service, validates final drop
+counters, stops it, and removes the package by default.
 
 The current handoff target is a production/distribution-grade release. The
 approximate readiness is:
@@ -86,7 +98,9 @@ Before calling this distribution-grade, finish these tracks:
   on at least Debian stable, Ubuntu LTS, and one container-host or stricter
   kernel/procfs environment.
 - Validate install, service start, normal-use stress, log inspection, stop,
-  uninstall, and rollback on a fresh target host.
+  uninstall, and rollback on a fresh target host. Use
+  `scripts/package-install-smoke.sh` for the first Debian/Ubuntu package
+  lifecycle pass.
 - Extend release artifacts beyond the initial tarball and Debian package
   builders if `.rpm` or detached signatures are required. The current builders
   honor `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package
@@ -330,13 +344,15 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
    inspect the generated artifacts and `runtime-guard version` output.
 3. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
    review the dependency/license inventory.
-4. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu
+4. Run `scripts/package-install-smoke.sh --duration 10m --yes` on a fresh
+   Debian or Ubuntu VM/VPS to validate the actual package lifecycle.
+5. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu
    LTS amd64 VM or VPS as the first external target.
-5. Save the full helper output and summarize it with
+6. Save the full helper output and summarize it with
    `scripts/validation-summary.sh`.
-6. If the Ubuntu run passes with zero required drops, repeat on a container host
+7. If the Ubuntu run passes with zero required drops, repeat on a container host
    or stricter kernel/procfs environment.
-7. Start package-format work only after at least Debian and Ubuntu
+8. Start package-format work only after at least Debian and Ubuntu
    amd64 pass the same smoke/stress criteria.
 
 ## File Map

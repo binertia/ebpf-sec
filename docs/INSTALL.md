@@ -60,6 +60,19 @@ The package installs `/usr/bin/runtime-guard` and
 `/lib/systemd/system/runtime-guard.service`, but does not enable or start the
 service automatically.
 
+On a fresh Debian/Ubuntu validation host, test the full package lifecycle before
+using the package on a personal machine or production host:
+
+```sh
+scripts/package-install-smoke.sh --duration 2m --yes
+```
+
+The package smoke helper refuses existing Runtime Guard installs by default,
+installs a temporary package, verifies that the service was not auto-started or
+enabled, starts the packaged service, validates final drop counters, stops the
+service, removes the package, and leaves `/var/lib/runtime-guard` for
+inspection unless `--purge-state` is supplied.
+
 ## Install Systemd Service
 
 The included unit runs as root with `CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE`,
@@ -257,6 +270,15 @@ Guard already excludes its own process PID from file-write capture, so test and
 inspect `event-summary` before adding a byte floor to the installed service.
 
 ## Uninstall
+
+If installed from the generated Debian package:
+
+```sh
+sudo systemctl disable --now runtime-guard.service
+sudo dpkg -r runtime-guard
+```
+
+If installed manually:
 
 ```sh
 sudo systemctl disable --now runtime-guard.service

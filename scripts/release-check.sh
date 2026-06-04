@@ -98,6 +98,7 @@ run bash -n \
 	scripts/release-check.sh \
 	scripts/build-release.sh \
 	scripts/build-deb.sh \
+	scripts/package-install-smoke.sh \
 	scripts/systemd-helper-lib.sh \
 	scripts/systemd-smoke.sh \
 	scripts/systemd-stress.sh \

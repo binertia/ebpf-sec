@@ -65,6 +65,13 @@ Run passive stress under normal host activity:
 scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes
 ```
 
+After transient smoke/stress pass on a fresh Debian or Ubuntu target, validate
+the actual Debian package lifecycle:
+
+```sh
+scripts/package-install-smoke.sh --duration 10m --yes
+```
+
 Save logs when comparing hosts:
 
 ```sh
