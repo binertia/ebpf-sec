@@ -30,6 +30,8 @@ Record for every run:
 
 The systemd helpers print this host fingerprint and final validation summary
 automatically.
+If you save full helper output to a file, summarize it later with
+`scripts/validation-summary.sh`.
 
 ## Baseline Commands
 
@@ -61,6 +63,15 @@ Run passive stress under normal host activity:
 
 ```sh
 scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes
+```
+
+Save logs when comparing hosts:
+
+```sh
+scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes \
+  2>&1 | tee runtime-guard-stress-hostname.log
+
+scripts/validation-summary.sh runtime-guard-stress-hostname.log
 ```
 
 ## Pass Criteria
