@@ -81,6 +81,7 @@ require_command bash
 require_command git
 require_command go
 require_command grep
+require_command mktemp
 require_command sha256sum
 require_command tar
 
@@ -98,6 +99,7 @@ run bash -n \
 	scripts/release-check.sh \
 	scripts/build-release.sh \
 	scripts/build-deb.sh \
+	scripts/release-manifest.sh \
 	scripts/package-install-smoke.sh \
 	scripts/systemd-helper-lib.sh \
 	scripts/systemd-smoke.sh \
@@ -107,15 +109,18 @@ run go test ./...
 run go vet ./...
 run go test -race ./...
 run go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
-run scripts/build-release.sh --version 0.0.0-ci --out "$artifact_check_dir/tar"
-verify_tar_artifact "$artifact_check_dir/tar" 0.0.0-ci
+release_dir="$artifact_check_dir/release"
+run scripts/build-release.sh --version 0.0.0-ci --out "$release_dir"
+verify_tar_artifact "$release_dir" 0.0.0-ci
 if command -v dpkg-deb >/dev/null 2>&1; then
-	run scripts/build-deb.sh --version 0.0.0-ci --out "$artifact_check_dir/deb"
-	verify_deb_artifact "$artifact_check_dir/deb" 0.0.0-ci
+	run scripts/build-deb.sh --version 0.0.0-ci --out "$release_dir"
+	verify_deb_artifact "$release_dir" 0.0.0-ci
 else
 	echo
 	echo "===== Debian package build skipped: dpkg-deb unavailable ====="
 fi
+run scripts/release-manifest.sh --dir "$release_dir"
+run scripts/release-manifest.sh --dir "$release_dir" --verify
 
 if [[ "$skip_vuln" -eq 0 ]]; then
 	if command -v govulncheck >/dev/null 2>&1; then

@@ -76,7 +76,9 @@ The current working release track also includes
 `scripts/package-install-smoke.sh`, a fresh-host Debian/Ubuntu package
 lifecycle helper that installs the generated package, verifies it does not
 auto-start or auto-enable, starts the packaged service, validates final drop
-counters, stops it, and removes the package by default.
+counters, stops it, and removes the package by default. Release artifact
+publication now has `scripts/release-manifest.sh` for a single sorted
+`SHA256SUMS` manifest and optional armored detached GPG signature.
 
 The current handoff target is a production/distribution-grade release. The
 approximate readiness is:
@@ -102,9 +104,10 @@ Before calling this distribution-grade, finish these tracks:
   `scripts/package-install-smoke.sh` for the first Debian/Ubuntu package
   lifecycle pass.
 - Extend release artifacts beyond the initial tarball and Debian package
-  builders if `.rpm` or detached signatures are required. The current builders
-  honor `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package
-  timestamps.
+  builders if `.rpm` is required. The current builders honor
+  `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package
+  timestamps, and `scripts/release-manifest.sh --sign` can produce a detached
+  signature for the combined checksum manifest.
 - Expand release automation beyond the initial CI gate if publishing packages
   requires multiple architectures or package formats.
 - Validate the operational policy in [`OPERATIONS.md`](OPERATIONS.md) under an
@@ -344,15 +347,17 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
    inspect the generated artifacts and `runtime-guard version` output.
 3. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
    review the dependency/license inventory.
-4. Run `scripts/package-install-smoke.sh --duration 10m --yes` on a fresh
+4. Generate `scripts/release-manifest.sh --dir dist --sign` and verify the
+   published `SHA256SUMS` plus `SHA256SUMS.asc` on a clean machine.
+5. Run `scripts/package-install-smoke.sh --duration 10m --yes` on a fresh
    Debian or Ubuntu VM/VPS to validate the actual package lifecycle.
-5. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu
+6. Run the [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md) matrix on an Ubuntu
    LTS amd64 VM or VPS as the first external target.
-6. Save the full helper output and summarize it with
+7. Save the full helper output and summarize it with
    `scripts/validation-summary.sh`.
-7. If the Ubuntu run passes with zero required drops, repeat on a container host
+8. If the Ubuntu run passes with zero required drops, repeat on a container host
    or stricter kernel/procfs environment.
-8. Start package-format work only after at least Debian and Ubuntu
+9. Start package-format work only after at least Debian and Ubuntu
    amd64 pass the same smoke/stress criteria.
 
 ## File Map

@@ -115,6 +115,13 @@ On a fresh Debian/Ubuntu validation host, run the installed package smoke test:
 scripts/package-install-smoke.sh --duration 2m --yes
 ```
 
+To generate and optionally sign a release checksum manifest:
+
+```sh
+scripts/release-manifest.sh --dir dist
+scripts/release-manifest.sh --dir dist --sign
+```
+
 To generate the dependency/license inventory:
 
 ```sh

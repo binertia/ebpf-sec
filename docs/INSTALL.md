@@ -73,6 +73,15 @@ enabled, starts the packaged service, validates final drop counters, stops the
 service, removes the package, and leaves `/var/lib/runtime-guard` for
 inspection unless `--purge-state` is supplied.
 
+Before publishing artifacts, generate a single checksum manifest for the built
+tarball and Debian package. Add `--sign` to write and verify an armored detached
+GPG signature:
+
+```sh
+scripts/release-manifest.sh --dir dist
+scripts/release-manifest.sh --dir dist --sign
+```
+
 ## Install Systemd Service
 
 The included unit runs as root with `CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE`,
