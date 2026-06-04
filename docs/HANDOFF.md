@@ -53,6 +53,9 @@ normalized events, produced one deterministic incident from local build activity
 and ended with zero ring-buffer, syscall-correlation, event-persistence, and
 incident-persistence drops. It consumed 3m14.901s CPU and peaked at 117.2M
 memory.
+Native arm64 support has compile coverage and a separate experimental VPS
+runbook in [`ARM_TEST.md`](ARM_TEST.md). Real arm64 smoke/stress validation is
+not blocking the next amd64 hardening task.
 
 ## Implemented MVP Surface
 
@@ -165,10 +168,10 @@ Implemented deterministic rules:
   hostname data when available. This is a bounded PID/start-time cache; the
   hostname is not guaranteed to match the container-runtime display name.
 - The eBPF smoke suite covers local loopback behavior only. Broader stress
-  testing across kernel versions, containers, network namespaces, and arm64
-  hardware remains.
+  testing across kernel versions, containers, and network namespaces remains.
 - Arm64 support targets native 64-bit processes. The 32-bit compat syscall ABI
-  has not been implemented.
+  has not been implemented. Hardware validation is tracked separately as an
+  experiment in [`ARM_TEST.md`](ARM_TEST.md).
 - Earlier transient systemd stress runs reported high ring-buffer drops before
   the live path was tuned. A 30-minute Debian run processed about 3.6M
   normalized events with no persistence or correlation drops, but still had
@@ -178,8 +181,8 @@ Implemented deterministic rules:
   After self-PID exclusion, plugged-in idle, light desktop, and 30-minute
   normal-use all-collector stress runs completed with zero ring-buffer,
   syscall-correlation, and persistence drops. Broader stress testing across
-  heavier workloads, kernel versions, containers, network namespaces, and arm64
-  hardware remains.
+  heavier workloads, kernel versions, containers, and network namespaces
+  remains.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 
@@ -277,5 +280,6 @@ internal/report/          terminal-safe rendering
 internal/persistqueue/    bounded async event persistence queue
 testdata/events/          fake normalized event fixtures
 docs/                     plan and this handoff
+docs/ARM_TEST.md          native arm64 VPS experiment
 packaging/systemd/        local systemd service template
 ```

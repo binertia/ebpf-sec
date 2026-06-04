@@ -26,7 +26,8 @@ Connect reports `success`, `in_progress`, or `failed` because non-blocking
 clients often return `EINPROGRESS`. A requested chmod execute bit does not
 prove that the bit was newly added.
 On arm64, direct `chmod` libc calls are captured through the `fchmodat` family
-provided by the arm64 syscall ABI.
+provided by the arm64 syscall ABI. Arm64 live hardware validation is tracked as
+an experiment in [`docs/ARM_TEST.md`](docs/ARM_TEST.md).
 
 Persist the fake pipeline to a local SQLite database and inspect the result:
 
@@ -81,4 +82,5 @@ architecture and phased implementation plan. See
 known limitations, validation commands, and recommended next task. See
 [`docs/INSTALL.md`](docs/INSTALL.md) for local service installation and
 systemd deployment notes, including transient capability validation before
-installing a narrower service override.
+installing a narrower service override. See [`docs/ARM_TEST.md`](docs/ARM_TEST.md)
+for the separate native arm64 VPS experiment.

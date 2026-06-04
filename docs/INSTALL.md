@@ -18,7 +18,8 @@ go build -trimpath -o ./bin/runtime-guard ./cmd/runtime-guard
 Linux amd64 and native arm64 are supported for live eBPF collection. Build release
 binaries natively on the target architecture when possible. Cross-building an
 arm64 release binary from amd64 requires cgo and an aarch64 C compiler because
-SQLite uses `github.com/mattn/go-sqlite3`:
+SQLite uses `github.com/mattn/go-sqlite3`. Native arm64 hardware validation is
+tracked separately in [`ARM_TEST.md`](ARM_TEST.md):
 
 ```sh
 GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc \
@@ -157,7 +158,8 @@ On arm64 hosts, expect direct `chmod` user-space calls to appear as
 `fchmodat`/`fchmodat2` events because arm64 does not expose the legacy direct
 `chmod` syscall.
 The arm64 collector targets native 64-bit processes; 32-bit compat syscall ABI
-coverage has not been implemented.
+coverage has not been implemented. Use [`ARM_TEST.md`](ARM_TEST.md) for the
+experimental arm64 VPS validation runbook.
 
 ## Systemd Sandbox Smoke Test
 
