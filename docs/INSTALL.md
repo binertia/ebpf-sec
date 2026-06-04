@@ -152,11 +152,12 @@ scripts/systemd-smoke.sh
 ```
 
 The script builds a unique `bin/runtime-guard-smoke-*` binary and generated
-runner, starts a unique `runtime-guard-smoke-*` transient unit, writes only to
-that unit's private `/var/lib/runtime-guard-smoke-*` state directory, prints the
-service status or unload note plus journal, and leaves the real
-`runtime-guard.service` untouched. Use `--capabilities` here to validate a
-narrower `CapabilityBoundingSet` before creating a real service override.
+runner, stages root-owned copies inside that unit's private
+`/var/lib/runtime-guard-smoke-*` state directory, starts a unique
+`runtime-guard-smoke-*` transient unit from the staged runner, prints the service
+status or unload note plus journal, and leaves the real `runtime-guard.service`
+untouched. Use `--capabilities` here to validate a narrower
+`CapabilityBoundingSet` before creating a real service override.
 
 ## Systemd Stress Test
 

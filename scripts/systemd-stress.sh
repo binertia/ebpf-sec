@@ -112,6 +112,7 @@ require_command() {
 
 require_command go
 require_command sudo
+require_command install
 require_command systemd-run
 require_command systemctl
 require_command journalctl
@@ -128,12 +129,6 @@ fi
 validate_capabilities "$capabilities"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-case "$repo_root" in
-/tmp/*|/var/tmp/*)
-	echo "refusing to run from $repo_root because PrivateTmp may hide the binary from the transient service" >&2
-	exit 1
-	;;
-esac
 cd "$repo_root"
 
 run_id="$(date +%Y%m%d%H%M%S)-$$"
@@ -141,15 +136,19 @@ unit="runtime-guard-stress-$run_id"
 service_unit="$unit.service"
 state_name="$unit"
 state_dir="/var/lib/$state_name"
-binary="$repo_root/bin/runtime-guard-stress-$run_id"
-runner_script="$repo_root/bin/runtime-guard-stress-runner-$run_id.sh"
+repo_binary="$repo_root/bin/runtime-guard-stress-$run_id"
+repo_runner_script="$repo_root/bin/runtime-guard-stress-runner-$run_id.sh"
+state_binary="$state_dir/runtime-guard-stress"
+state_runner_script="$state_dir/runtime-guard-stress-runner.sh"
 
 cat <<EOF
 Runtime Guard systemd stress test
 
 Will:
-  - build: $binary
-  - build runner: $runner_script
+  - build: $repo_binary
+  - build runner: $repo_runner_script
+  - stage binary: $state_binary
+  - stage runner: $state_runner_script
   - start transient unit: $service_unit
   - run duration: $duration
   - stats interval: $stats_interval
@@ -192,9 +191,9 @@ fi
 mkdir -p "$repo_root/bin"
 GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}" \
 GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}" \
-	go build -trimpath -o "$binary" ./cmd/runtime-guard
+	go build -trimpath -o "$repo_binary" ./cmd/runtime-guard
 
-cat >"$runner_script" <<'EOF'
+cat >"$repo_runner_script" <<'EOF'
 #!/bin/sh
 set -eu
 guard_bin=$1
@@ -244,7 +243,11 @@ wait "$guard" 2>/dev/null || true
 trap - INT TERM EXIT
 exit 0
 EOF
-chmod 0755 "$runner_script"
+chmod 0755 "$repo_runner_script"
+
+sudo install -d -o root -g root -m 0700 "$state_dir"
+sudo install -o root -g root -m 0755 "$repo_binary" "$state_binary"
+sudo install -o root -g root -m 0755 "$repo_runner_script" "$state_runner_script"
 
 systemd_args=(
 	--unit="$unit"
@@ -275,7 +278,7 @@ systemd_args=(
 	-p RestrictNamespaces=yes
 	-p RestrictRealtime=yes
 	-p RestrictSUIDSGID=yes
-	"$runner_script" "$binary" "$state_name" "$duration" "$stats_interval" "$collectors" "$file_write_min_bytes"
+	"$state_runner_script" "$state_binary" "$state_name" "$duration" "$stats_interval" "$collectors" "$file_write_min_bytes"
 )
 
 set +e
@@ -302,12 +305,12 @@ echo
 echo "State directory left for inspection: $state_dir"
 echo "Useful inspection commands:"
 echo "  sudo du -h '$state_dir'"
-echo "  sudo '$binary' event-summary --db '$state_dir/runtime-guard.db' --type file_write --limit 10"
-echo "  sudo '$binary' incidents --db '$state_dir/runtime-guard.db'"
-echo "  sudo '$binary' events --db '$state_dir/runtime-guard.db' --limit 5"
+echo "  sudo '$state_binary' event-summary --db '$state_dir/runtime-guard.db' --type file_write --limit 10"
+echo "  sudo '$state_binary' incidents --db '$state_dir/runtime-guard.db'"
+echo "  sudo '$state_binary' events --db '$state_dir/runtime-guard.db' --limit 5"
 echo "Cleanup command after inspection:"
 echo "  sudo rm -rf -- '$state_dir'"
-echo "  rm -f -- '$binary'"
-echo "  rm -f -- '$runner_script'"
+echo "  rm -f -- '$repo_binary'"
+echo "  rm -f -- '$repo_runner_script'"
 
 exit "$run_status"
