@@ -103,7 +103,7 @@ scripts/build-release.sh --version v0.1.0
 To build a Debian package for the current Linux architecture:
 
 ```sh
-scripts/build-deb.sh --version v0.1.0
+scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 ```
 
 Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata

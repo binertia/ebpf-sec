@@ -116,6 +116,8 @@ Before calling this distribution-grade, finish these tracks:
   arm64 host completes the smoke/stress runbook in [`ARM_TEST.md`](ARM_TEST.md).
 - Review `scripts/dependency-review.sh --out dist/dependency-review.md` output
   before publishing packages for other users.
+- Set a real Debian package maintainer with `scripts/build-deb.sh --maintainer`
+  or `RUNTIME_GUARD_PACKAGE_MAINTAINER` before publishing a `.deb`.
 
 ## Implemented MVP Surface
 

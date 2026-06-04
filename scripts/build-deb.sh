@@ -6,7 +6,7 @@ cd "$repo_root"
 
 usage() {
 	cat <<'EOF'
-Usage: scripts/build-deb.sh [--version VERSION] [--out DIR] [--target linux/amd64|linux/arm64]
+Usage: scripts/build-deb.sh [--version VERSION] [--out DIR] [--target linux/amd64|linux/arm64] [--maintainer "NAME <EMAIL>"]
 
 Builds a Debian package for Runtime Guard and writes a SHA256 checksum. The
 package installs:
@@ -18,12 +18,16 @@ The package does not enable or start the service automatically.
 
 If SOURCE_DATE_EPOCH is set, build metadata and package timestamps use that
 Unix timestamp.
+
+Set --maintainer or RUNTIME_GUARD_PACKAGE_MAINTAINER before publishing a package
+for other users. The default maintainer is a placeholder.
 EOF
 }
 
 version=""
 out_dir="dist"
 target=""
+maintainer="${RUNTIME_GUARD_PACKAGE_MAINTAINER:-Runtime Guard Maintainers <maintainers@example.invalid>}"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -49,6 +53,14 @@ while [[ $# -gt 0 ]]; do
 			exit 2
 		fi
 		target=$2
+		shift 2
+		;;
+	--maintainer)
+		if [[ $# -lt 2 ]]; then
+			echo "--maintainer requires a value" >&2
+			exit 2
+		fi
+		maintainer=$2
 		shift 2
 		;;
 	--help|-h)
@@ -82,6 +94,19 @@ validate_release_label() {
 validate_debian_version() {
 	if [[ ! "$1" =~ ^[0-9][A-Za-z0-9.+:~-]*$ ]]; then
 		echo "Debian version must start with a digit and contain only Debian-safe characters: $1" >&2
+		exit 2
+	fi
+}
+
+validate_control_field() {
+	local name=$1
+	local value=$2
+	if [[ -z "$value" ]]; then
+		echo "$name must not be empty" >&2
+		exit 2
+	fi
+	if [[ "$value" == *$'\n'* || "$value" == *$'\r'* || "$value" =~ [[:cntrl:]] ]]; then
+		echo "$name must be a single-line Debian control field" >&2
 		exit 2
 	fi
 }
@@ -187,6 +212,7 @@ validate_release_label version "$version"
 validate_release_label commit "$commit"
 validate_release_label build_date "$build_date"
 validate_debian_version "$debian_version"
+validate_control_field maintainer "$maintainer"
 
 target_os="${target%/*}"
 target_arch="${target#*/}"
@@ -230,7 +256,7 @@ Version: $debian_version
 Section: admin
 Priority: optional
 Architecture: $package_arch
-Maintainer: Runtime Guard Maintainers <maintainers@example.invalid>
+Maintainer: $maintainer
 Depends: libc6, systemd
 Description: Local-first eBPF runtime security analyst
  Runtime Guard observes selected runtime events with eBPF, groups related

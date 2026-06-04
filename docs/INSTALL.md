@@ -20,11 +20,13 @@ For release artifacts, use the repository build script. It stamps
 
 ```sh
 scripts/build-release.sh --version v0.1.0
-scripts/build-deb.sh --version v0.1.0
+scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 ```
 
 Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata
 and archive/package timestamps are required.
+Set `--maintainer` or `RUNTIME_GUARD_PACKAGE_MAINTAINER` before publishing a
+Debian package for other users.
 
 Linux amd64 and native arm64 are supported for live eBPF collection. Build release
 binaries natively on the target architecture when possible. Cross-building an

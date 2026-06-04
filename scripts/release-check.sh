@@ -65,10 +65,16 @@ verify_tar_artifact() {
 verify_deb_artifact() {
 	local out_dir=$1
 	local version=$2
+	local maintainer=${3:-}
 	local name="runtime-guard_${version}_amd64"
 	local extract_dir="$artifact_check_dir/deb-extract"
+	local package_info
 	run bash -c "cd \"\$1\" && sha256sum -c \"\$2.deb.sha256\"" _ "$out_dir" "$name"
-	dpkg-deb --info "$out_dir/$name.deb" | grep -F "Version: $version" >/dev/null
+	package_info="$(dpkg-deb --info "$out_dir/$name.deb")"
+	printf '%s\n' "$package_info" | grep -F "Version: $version" >/dev/null
+	if [[ -n "$maintainer" ]]; then
+		printf '%s\n' "$package_info" | grep -F "Maintainer: $maintainer" >/dev/null
+	fi
 	dpkg-deb --contents "$out_dir/$name.deb" | grep -F "./usr/bin/runtime-guard" >/dev/null
 	mkdir -p "$extract_dir"
 	dpkg-deb -x "$out_dir/$name.deb" "$extract_dir"
@@ -113,8 +119,9 @@ release_dir="$artifact_check_dir/release"
 run scripts/build-release.sh --version 0.0.0-ci --out "$release_dir"
 verify_tar_artifact "$release_dir" 0.0.0-ci
 if command -v dpkg-deb >/dev/null 2>&1; then
-	run scripts/build-deb.sh --version 0.0.0-ci --out "$release_dir"
-	verify_deb_artifact "$release_dir" 0.0.0-ci
+	ci_maintainer="Runtime Guard CI <ci@example.invalid>"
+	run scripts/build-deb.sh --version 0.0.0-ci --out "$release_dir" --maintainer "$ci_maintainer"
+	verify_deb_artifact "$release_dir" 0.0.0-ci "$ci_maintainer"
 else
 	echo
 	echo "===== Debian package build skipped: dpkg-deb unavailable ====="
