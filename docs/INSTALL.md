@@ -23,6 +23,9 @@ scripts/build-release.sh --version v0.1.0
 scripts/build-deb.sh --version v0.1.0
 ```
 
+Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata
+and archive/package timestamps are required.
+
 Linux amd64 and native arm64 are supported for live eBPF collection. Build release
 binaries natively on the target architecture when possible. Cross-building an
 arm64 release binary from amd64 requires cgo and an aarch64 C compiler because

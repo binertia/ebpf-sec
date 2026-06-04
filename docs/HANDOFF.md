@@ -88,8 +88,9 @@ Before calling this distribution-grade, finish these tracks:
 - Validate install, service start, normal-use stress, log inspection, stop,
   uninstall, and rollback on a fresh target host.
 - Extend release artifacts beyond the initial tarball and Debian package
-  builders if `.rpm`, detached signatures, or reproducible build notes are
-  required.
+  builders if `.rpm` or detached signatures are required. The current builders
+  honor `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package
+  timestamps.
 - Expand release automation beyond the initial CI gate if publishing packages
   requires multiple architectures or package formats.
 - Validate the operational policy in [`OPERATIONS.md`](OPERATIONS.md) under an

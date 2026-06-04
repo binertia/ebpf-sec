@@ -15,6 +15,9 @@ package installs:
   - documentation under /usr/share/doc/runtime-guard
 
 The package does not enable or start the service automatically.
+
+If SOURCE_DATE_EPOCH is set, build metadata and package timestamps use that
+Unix timestamp.
 EOF
 }
 
@@ -135,8 +138,32 @@ target_cc() {
 	exit 1
 }
 
+build_date_utc() {
+	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
+		if [[ ! "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]]; then
+			echo "SOURCE_DATE_EPOCH must be a Unix timestamp: $SOURCE_DATE_EPOCH" >&2
+			exit 2
+		fi
+		date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%M:%SZ
+		return
+	fi
+	date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+normalize_tree_metadata() {
+	local root=$1
+	find "$root" -type d -exec chmod 0755 {} +
+	find "$root" -type f -exec chmod 0644 {} +
+	chmod 0755 "$root/usr/bin/runtime-guard"
+	chmod 0755 "$root/DEBIAN/postinst" "$root/DEBIAN/postrm"
+	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
+		find "$root" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
+	fi
+}
+
 require_command date
 require_command dpkg-deb
+require_command find
 require_command git
 require_command go
 require_command sha256sum
@@ -154,7 +181,7 @@ if [[ -z "$version" ]]; then
 	version="0.0.0+$commit"
 fi
 debian_version="${version#v}"
-build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+build_date="$(build_date_utc)"
 
 validate_release_label version "$version"
 validate_release_label commit "$commit"
@@ -230,6 +257,7 @@ fi
 exit 0
 EOF
 chmod 0755 "$pkg_root/DEBIAN/postrm"
+normalize_tree_metadata "$pkg_root"
 
 deb_path="$out_dir/$package_name.deb"
 dpkg-deb --build --root-owner-group "$pkg_root" "$deb_path"

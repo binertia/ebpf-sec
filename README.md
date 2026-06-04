@@ -106,6 +106,9 @@ To build a Debian package for the current Linux architecture:
 scripts/build-deb.sh --version v0.1.0
 ```
 
+Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata
+and archive timestamps are required.
+
 To generate the dependency/license inventory:
 
 ```sh

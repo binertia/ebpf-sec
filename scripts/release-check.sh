@@ -49,14 +49,46 @@ run() {
 	"$@"
 }
 
+verify_tar_artifact() {
+	local out_dir=$1
+	local version=$2
+	local name="runtime-guard-${version}-linux-amd64"
+	local extract_dir="$artifact_check_dir/tar-extract"
+	run bash -c "cd \"\$1\" && sha256sum -c \"\$2.tar.gz.sha256\" && sha256sum -c SHA256SUMS" _ "$out_dir" "$name"
+	mkdir -p "$extract_dir"
+	tar -C "$extract_dir" -xzf "$out_dir/$name.tar.gz"
+	run "$extract_dir/$name/runtime-guard" version
+	"$extract_dir/$name/runtime-guard" version | grep -F "runtime-guard $version" >/dev/null
+	grep -F "ExecStart=/usr/local/bin/runtime-guard" "$extract_dir/$name/packaging/systemd/runtime-guard.service" >/dev/null
+}
+
+verify_deb_artifact() {
+	local out_dir=$1
+	local version=$2
+	local name="runtime-guard_${version}_amd64"
+	local extract_dir="$artifact_check_dir/deb-extract"
+	run bash -c "cd \"\$1\" && sha256sum -c \"\$2.deb.sha256\"" _ "$out_dir" "$name"
+	dpkg-deb --info "$out_dir/$name.deb" | grep -F "Version: $version" >/dev/null
+	dpkg-deb --contents "$out_dir/$name.deb" | grep -F "./usr/bin/runtime-guard" >/dev/null
+	mkdir -p "$extract_dir"
+	dpkg-deb -x "$out_dir/$name.deb" "$extract_dir"
+	run "$extract_dir/usr/bin/runtime-guard" version
+	"$extract_dir/usr/bin/runtime-guard" version | grep -F "runtime-guard $version" >/dev/null
+	grep -F "ExecStart=/usr/bin/runtime-guard" "$extract_dir/lib/systemd/system/runtime-guard.service" >/dev/null
+}
+
 require_command bash
 require_command git
 require_command go
+require_command grep
+require_command sha256sum
+require_command tar
 
 export GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}"
 export GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}"
 artifact_check_dir="$(mktemp -d)"
 trap 'rm -rf "$artifact_check_dir"' EXIT
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1780531200}"
 
 run go version
 run git diff --check
@@ -75,8 +107,10 @@ run go vet ./...
 run go test -race ./...
 run go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
 run scripts/build-release.sh --version 0.0.0-ci --out "$artifact_check_dir/tar"
+verify_tar_artifact "$artifact_check_dir/tar" 0.0.0-ci
 if command -v dpkg-deb >/dev/null 2>&1; then
 	run scripts/build-deb.sh --version 0.0.0-ci --out "$artifact_check_dir/deb"
+	verify_deb_artifact "$artifact_check_dir/deb" 0.0.0-ci
 else
 	echo
 	echo "===== Debian package build skipped: dpkg-deb unavailable ====="

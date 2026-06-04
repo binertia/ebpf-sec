@@ -14,6 +14,9 @@ the script builds the current Linux amd64 or arm64 host architecture only.
 Cross-building arm64 from amd64 requires CC=aarch64-linux-gnu-gcc or an
 available aarch64-linux-gnu-gcc in PATH. Cross-building amd64 from another
 architecture similarly requires CC or x86_64-linux-gnu-gcc.
+
+If SOURCE_DATE_EPOCH is set, build metadata and archive timestamps use that
+Unix timestamp.
 EOF
 }
 
@@ -116,9 +119,45 @@ target_cc() {
 	exit 1
 }
 
+build_date_utc() {
+	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
+		if [[ ! "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]]; then
+			echo "SOURCE_DATE_EPOCH must be a Unix timestamp: $SOURCE_DATE_EPOCH" >&2
+			exit 2
+		fi
+		date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%M:%SZ
+		return
+	fi
+	date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+normalize_tree_metadata() {
+	local root=$1
+	find "$root" -type d -exec chmod 0755 {} +
+	find "$root" -type f -exec chmod 0644 {} +
+	chmod 0755 "$root/runtime-guard"
+	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
+		find "$root" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
+	fi
+}
+
+write_tarball() {
+	local source_dir=$1
+	local artifact_name=$2
+	local tarball=$3
+	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
+		tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$SOURCE_DATE_EPOCH" \
+			-C "$source_dir" -cf - "$artifact_name" | gzip -n >"$tarball"
+		return
+	fi
+	tar --sort=name --owner=0 --group=0 --numeric-owner -C "$source_dir" -czf "$tarball" "$artifact_name"
+}
+
 require_command date
+require_command find
 require_command git
 require_command go
+require_command gzip
 require_command sha256sum
 require_command tar
 
@@ -129,7 +168,7 @@ if [[ -z "$version" ]]; then
 	version="$(git describe --tags --always --dirty)"
 fi
 commit="$(git rev-parse --short=12 HEAD)"
-build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+build_date="$(build_date_utc)"
 
 validate_label version "$version"
 validate_label commit "$commit"
@@ -175,9 +214,10 @@ for target in "${targets[@]}"; do
 	cp README.md "$artifact_root/"
 	cp docs/INSTALL.md "$artifact_root/docs/"
 	cp packaging/systemd/runtime-guard.service "$artifact_root/packaging/systemd/"
+	normalize_tree_metadata "$artifact_root"
 
 	tarball="$out_dir/$artifact_name.tar.gz"
-	tar -C "$tmp_dir" -czf "$tarball" "$artifact_name"
+	write_tarball "$tmp_dir" "$artifact_name" "$tarball"
 	(
 		cd "$out_dir"
 		sha256sum "$artifact_name.tar.gz" >"$artifact_name.tar.gz.sha256"
