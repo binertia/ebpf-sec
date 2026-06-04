@@ -88,6 +88,11 @@ scripts/validation-summary.sh runtime-guard-stress-hostname.log
   each enabled collector.
 - CPU and memory are acceptable for the target class.
 
+The smoke and stress helpers exit nonzero when the transient unit fails, final
+runtime stats are missing, or any required drop counter is nonzero. Saved logs
+can be checked later with `scripts/validation-summary.sh`, which applies the
+same pass/fail criteria.
+
 ## If Narrow Capabilities Fail
 
 Rerun smoke with a broader compatibility set:

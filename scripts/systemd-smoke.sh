@@ -253,6 +253,11 @@ journal_output="$(sudo journalctl -u "$service_unit" -n 160 --no-pager 2>&1)" ||
 printf '%s\n' "$journal_output"
 
 runtime_guard_print_validation_summary "$run_status" "$run_output" "$journal_output"
+final_stats="$(runtime_guard_final_runtime_stats "$journal_output")"
+set +e
+runtime_guard_validation_exit_status "$run_status" "$final_stats"
+validation_status=$?
+set -e
 
 echo
 echo "State directory left for inspection: $state_dir"
@@ -261,4 +266,4 @@ echo "  sudo rm -rf -- '$state_dir'"
 echo "  rm -f -- '$repo_binary'"
 echo "  rm -f -- '$repo_runner_script'"
 
-exit "$run_status"
+exit "$validation_status"

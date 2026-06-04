@@ -197,10 +197,12 @@ For repeatable multi-host validation, use the matrix in
 [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md).
 Track the final `runtime stats` line, CPU time, memory peak, and whether
 `ring_dropped`, `correlation_dropped`, `persist_dropped`, or
-`incident_persist_dropped` remain zero. If ring drops are nonzero, also capture
-`collector_ring_dropped` so the noisy collector can be tuned directly. Record
-whether the host was plugged in or on battery and whether it was idle or running
-other workload during the test.
+`incident_persist_dropped` remain zero. The smoke and stress helpers exit
+nonzero if the transient unit fails, final runtime stats are missing, or any of
+those required drop counters are nonzero. If ring drops are nonzero, also
+capture `collector_ring_dropped` so the noisy collector can be tuned directly.
+Record whether the host was plugged in or on battery and whether it was idle or
+running other workload during the test.
 If drops return, use `event-summary` against the stress database to inspect the
 stored sample of high-volume processes and paths:
 

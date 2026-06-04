@@ -157,6 +157,10 @@ Implemented deterministic rules:
 - The transient systemd smoke and stress helpers accept `--capabilities` so a
   broader compatibility `CapabilityBoundingSet` can be validated on hosts where
   the packaged narrow set fails smoke or stress.
+- The transient systemd smoke and stress helpers exit nonzero when the
+  transient unit fails, final runtime stats are missing, or required drop
+  counters are nonzero. Saved helper logs can be summarized later with
+  `scripts/validation-summary.sh`.
 - The MVP never automatically kills, blocks, or remediates processes.
 
 ## Known Limitations
