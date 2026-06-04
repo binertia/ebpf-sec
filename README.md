@@ -86,3 +86,9 @@ installing a narrower service override. See [`docs/ARM_TEST.md`](docs/ARM_TEST.m
 for the separate native arm64 VPS experiment and
 [`docs/STRESS_VALIDATION.md`](docs/STRESS_VALIDATION.md) for the active
 multi-host validation track.
+
+For the non-root release gate used by CI and pre-release checks, run:
+
+```sh
+scripts/release-check.sh
+```

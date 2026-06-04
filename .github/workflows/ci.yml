@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    name: Release check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOCACHE: ${{ runner.temp }}/runtime-guard-gocache
+      GOMODCACHE: ${{ runner.temp }}/runtime-guard-gomodcache
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          check-latest: true
+
+      - name: Run release gate
+        run: scripts/release-check.sh

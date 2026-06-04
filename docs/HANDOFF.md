@@ -89,8 +89,8 @@ Before calling this distribution-grade, finish these tracks:
   uninstall, and rollback on a fresh target host.
 - Add release artifacts: versioned binaries or packages, checksums, signatures,
   and reproducible build notes.
-- Add release automation or CI that runs `go test`, `go vet`, `go test -race`,
-  eBPF smoke compile, and `govulncheck`.
+- Expand release automation beyond the initial CI gate if publishing packages
+  requires multiple architectures or package formats.
 - Document operational policy for SQLite database growth, retention, backup,
   compaction, and log retention.
 - Decide the release claim for arm64. Keep it experimental unless a native
@@ -234,6 +234,12 @@ Implemented deterministic rules:
 ## Validation
 
 Use a writable Go cache in this environment:
+
+```sh
+scripts/release-check.sh
+```
+
+The release gate above runs the non-root checks below:
 
 ```sh
 GOCACHE=/tmp/runtime-guard-gocache \
