@@ -171,6 +171,9 @@ scripts/systemd-stress.sh --duration 30m --stats-interval 1m
 The stress helper uses the same sandbox and tuned buffer settings as the
 packaged service unless `--capabilities` is supplied for least-privilege
 validation. It does not install the service or generate artificial load.
+The smoke and stress helpers use a shared local lock and refuse overlapping
+helper runs; overlapping Runtime Guard runs can observe each other's SQLite WAL
+writes and invalidate file-write drop results.
 Track the final `runtime stats` line, CPU time, memory peak, and whether
 `ring_dropped`, `correlation_dropped`, `persist_dropped`, or
 `incident_persist_dropped` remain zero. If ring drops are nonzero, also capture

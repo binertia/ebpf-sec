@@ -69,10 +69,19 @@ require_command() {
 require_command go
 require_command sudo
 require_command install
+require_command flock
 require_command systemd-run
 require_command systemctl
 require_command journalctl
 validate_capabilities "$capabilities"
+
+lock_file=/tmp/runtime-guard-systemd-helper.lock
+exec 9>"$lock_file"
+if ! flock -n 9; then
+	echo "another Runtime Guard systemd smoke/stress helper is already running" >&2
+	echo "wait for it to finish before starting a new helper run" >&2
+	exit 1
+fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
