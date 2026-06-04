@@ -27,9 +27,9 @@ PrivateTmp=yes
 NoNewPrivileges=yes
 SystemCallArchitectures=native
 
-# Keep enough privilege for eBPF/procfs operation across common kernels while
-# removing broad capabilities not needed by the MVP.
-CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+# Modern kernels should only need eBPF/perf tracing plus resource-limit handling.
+# Revalidate with scripts/systemd-smoke.sh before widening this on a host.
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE
 
 LockPersonality=yes
 MemoryDenyWriteExecute=yes

@@ -46,6 +46,13 @@ zero ring-buffer, syscall-correlation, and persistence drops. That run consumed
 A 30-minute plugged-in normal-use stress run then completed with zero
 ring-buffer, syscall-correlation, and persistence drops. It ran for 30m5.188s,
 consumed 4m20.815s CPU, and peaked at 162.5M memory.
+On 2026-06-04, the transient systemd smoke helper and a 30-minute all-collector
+stress run also passed with the narrower capability set
+`CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE`. The 30-minute run processed 19,744
+normalized events, produced one deterministic incident from local build activity,
+and ended with zero ring-buffer, syscall-correlation, event-persistence, and
+incident-persistence drops. It consumed 3m14.901s CPU and peaked at 117.2M
+memory.
 
 ## Implemented MVP Surface
 
@@ -143,9 +150,8 @@ Implemented deterministic rules:
 - `runtime-guard run --stats-interval` controls periodic runtime stats; `0`
   disables periodic stats while preserving final shutdown stats.
 - The transient systemd smoke and stress helpers accept `--capabilities` so a
-  narrower `CapabilityBoundingSet` can be validated before applying a real
-  service override. The packaged unit keeps the broader compatibility set until
-  a host-specific narrower set has passed smoke and stress.
+  broader compatibility `CapabilityBoundingSet` can be validated on hosts where
+  the packaged narrow set fails smoke or stress.
 - The MVP never automatically kills, blocks, or remediates processes.
 
 ## Known Limitations

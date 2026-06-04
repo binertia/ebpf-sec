@@ -29,17 +29,18 @@ Confirm the installed binary runs:
 
 ## Install Systemd Service
 
-The included unit runs as root, creates `/var/lib/runtime-guard` with `0700`
-permissions, and applies a systemd sandbox that keeps writes limited to the
-state directory, hides host devices, blocks namespace creation, restricts the
-service to the native syscall ABI, and prevents writable-executable memory. It
-uses `--quiet-events` and `--stats-interval 1m` so journald receives startup
-messages, incidents, and periodic stats without every normalized event JSON
-line. It also raises burst buffers with `--event-buffer 16384`,
-`--persist-buffer 16384`, `--persist-batch-size 512`, and
-`--ring-buffer-size 8388608`. The private state directory matches the SQLite
-path checks in the application: the database parent directory must be owned by
-the service UID and must not permit group or other writes.
+The included unit runs as root with `CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE`,
+creates `/var/lib/runtime-guard` with `0700` permissions, and applies a systemd
+sandbox that keeps writes limited to the state directory, hides host devices,
+blocks namespace creation, restricts the service to the native syscall ABI, and
+prevents writable-executable memory. It uses `--quiet-events` and
+`--stats-interval 1m` so journald receives startup messages, incidents, and
+periodic stats without every normalized event JSON line. It also raises burst
+buffers with `--event-buffer 16384`, `--persist-buffer 16384`,
+`--persist-batch-size 512`, and `--ring-buffer-size 8388608`. The private state
+directory matches the SQLite path checks in the application: the database parent
+directory must be owned by the service UID and must not permit group or other
+writes.
 The service enables all collectors by default. Add `--collectors` to the unit's
 `ExecStart` only when you intentionally want a narrower deployment such as
 `--collectors execve,connect`.
@@ -90,9 +91,9 @@ Keep the default local-only behavior for normal operation.
 
 ## Capability Notes
 
-The MVP service intentionally runs as root with a constrained systemd sandbox.
-That is the most predictable deployment mode for raw tracepoint eBPF collection
-and procfs enrichment.
+The MVP service intentionally runs as root with a constrained systemd sandbox
+and a narrow capability bounding set validated on the development Debian host.
+That is the most predictable deployment mode for raw tracepoint eBPF collection.
 
 A future least-privilege unit should be validated on the exact target kernel and
 distribution. Depending on kernel version and procfs policy, it may need some
@@ -106,13 +107,13 @@ combination of:
 Do not assume a file-capability deployment is equivalent to the root service
 until the root-only smoke tests and live enrichment have been revalidated.
 
-To test a narrower capability set without changing the installed service, pass
-`--capabilities` to the transient systemd helpers. Start with the modern kernel
-set, then add back compatibility capabilities only if the smoke test fails:
+To test a different capability set without changing the installed service, pass
+`--capabilities` to the transient systemd helpers. The default matches the
+packaged unit. Add back compatibility capabilities only if the default smoke
+test fails:
 
 ```sh
-scripts/systemd-smoke.sh \
-  --capabilities "CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE"
+scripts/systemd-smoke.sh
 
 scripts/systemd-smoke.sh \
   --capabilities "CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE"
@@ -121,13 +122,13 @@ scripts/systemd-smoke.sh \
   --capabilities "CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE"
 ```
 
-After the narrowest passing smoke set is known, repeat the normal stress test
-with the same `--capabilities` value. Only apply a narrower service override
-after both smoke and stress runs pass with zero drop counters:
+After a passing fallback set is known, repeat the normal stress test with the
+same `--capabilities` value. Only apply a wider service override after both
+smoke and stress runs pass with zero drop counters:
 
 ```ini
 [Service]
-CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE
 ```
 
 ## Root Smoke Test
@@ -156,7 +157,7 @@ runner, stages root-owned copies inside that unit's private
 `/var/lib/runtime-guard-smoke-*` state directory, starts a unique
 `runtime-guard-smoke-*` transient unit from the staged runner, prints the service
 status or unload note plus journal, and leaves the real `runtime-guard.service`
-untouched. Use `--capabilities` here to validate a narrower
+untouched. Use `--capabilities` here to validate a different
 `CapabilityBoundingSet` before creating a real service override.
 
 ## Systemd Stress Test

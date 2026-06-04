@@ -28,7 +28,7 @@ duration=30m
 stats_interval=1m
 collectors=all
 file_write_min_bytes=0
-capabilities="CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE"
+capabilities="CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE"
 assume_yes=0
 
 while [[ $# -gt 0 ]]; do
