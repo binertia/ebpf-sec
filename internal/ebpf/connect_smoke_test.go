@@ -1,4 +1,4 @@
-//go:build ebpf_smoke && linux && amd64
+//go:build ebpf_smoke && linux && (amd64 || arm64)
 
 package ebpf
 
@@ -59,6 +59,7 @@ func testConnectCollectorSmoke(t *testing.T, network, listenAddress, expectedAdd
 				event.RemotePort == endpoint.Port &&
 				connectSmokeOutcomeAccepted(event) {
 				cancel()
+				waitForCollectorShutdown(t, errors)
 				return
 			}
 		case err := <-errors:

@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && (amd64 || arm64)
 
 package ebpf
 
@@ -11,10 +11,7 @@ import (
 	"github.com/cilium/ebpf/asm"
 )
 
-const (
-	ptRegsDXOffset     = 96
-	maxPendingSyscalls = 16384
-)
+const maxPendingSyscalls = 16384
 
 func newPendingSyscallMap(name string, valueSize int) (*cebpf.Map, error) {
 	return cebpf.NewMap(&cebpf.MapSpec{

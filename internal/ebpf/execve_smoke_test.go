@@ -1,4 +1,4 @@
-//go:build ebpf_smoke && linux && amd64
+//go:build ebpf_smoke && linux && (amd64 || arm64)
 
 package ebpf
 
@@ -37,6 +37,7 @@ func TestExecveCollectorSmoke(t *testing.T) {
 		case event := <-sink:
 			if event.ExecutablePath == "/bin/true" {
 				cancel()
+				waitForCollectorShutdown(t, errors)
 				return
 			}
 		case err := <-errors:

@@ -1,4 +1,4 @@
-//go:build ebpf_smoke && linux && amd64
+//go:build ebpf_smoke && linux && (amd64 || arm64)
 
 package ebpf
 
@@ -43,6 +43,7 @@ func TestChmodCollectorSmoke(t *testing.T) {
 				event.Metadata["added_execute_bit"] == true &&
 				event.Metadata["outcome"] == "success" {
 				cancel()
+				waitForCollectorShutdown(t, errors)
 				return
 			}
 		case err := <-errors:

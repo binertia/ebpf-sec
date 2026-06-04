@@ -636,7 +636,7 @@ func writeUsage(out io.Writer) {
 Usage:
   runtime-guard demo [--db path] [fixture.json]       Run the fake-event incident pipeline
   runtime-guard run [--db path] [--flush-after time] [--stats-interval time] [--event-buffer count] [--persist-buffer count] [--persist-batch-size count] [--ring-buffer-size bytes] [--collectors list] [--file-write-min-bytes bytes] [--quiet-events]
-                                                       Stream live runtime events and detect incidents (Linux amd64, root)
+                                                       Stream live runtime events and detect incidents (Linux amd64/arm64, root)
   runtime-guard events [--db path] [--limit count]    List stored normalized events
   runtime-guard event-summary [--db path] [--type event_type] [--limit count]
                                                        Summarize stored event volume by process and file path

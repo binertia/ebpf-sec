@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && (amd64 || arm64)
 
 package ebpf
 
@@ -23,11 +23,7 @@ import (
 )
 
 const (
-	chmodSyscallNumber     = 90
-	fchmodSyscallNumber    = 91
-	fchmodatSyscallNumber  = 268
-	fchmodat2SyscallNumber = 452
-	atFDCWD                = -100
+	atFDCWD = -100
 )
 
 type ChmodCollector struct {
@@ -206,13 +202,17 @@ func chmodEnterProgramSpec(pendingFD, correlationDropCounterFD int) *cebpf.Progr
 	instructions := asm.Instructions{
 		asm.Mov.Reg(asm.R6, asm.R1),
 		asm.LoadMem(asm.R8, asm.R6, 8, asm.DWord),
-		asm.JEq.Imm(asm.R8, chmodSyscallNumber, "capture"),
+	}
+	if hasChmodSyscall {
+		instructions = append(instructions, asm.JEq.Imm(asm.R8, chmodSyscallNumber, "capture"))
+	}
+	instructions = append(instructions,
 		asm.JEq.Imm(asm.R8, fchmodSyscallNumber, "capture"),
 		asm.JEq.Imm(asm.R8, fchmodatSyscallNumber, "capture"),
 		asm.JEq.Imm(asm.R8, fchmodat2SyscallNumber, "capture"),
 		asm.Ja.Label("exit"),
 		asm.Mov.Imm(asm.R0, 0).WithSymbol("capture"),
-	}
+	)
 	for offset := recordStart; offset < 0; offset += 8 {
 		instructions = append(instructions, asm.StoreMem(asm.RFP, offset, asm.R0, asm.DWord))
 	}
@@ -236,43 +236,47 @@ func chmodEnterProgramSpec(pendingFD, correlationDropCounterFD int) *cebpf.Progr
 		asm.Mov.Imm(asm.R2, commSize),
 		asm.FnGetCurrentComm.Call(),
 
-		asm.JEq.Imm(asm.R8, chmodSyscallNumber, "chmod_path"),
 		asm.JEq.Imm(asm.R8, fchmodSyscallNumber, "fchmod_fd"),
 	)
+	if hasChmodSyscall {
+		instructions = append(instructions, asm.JEq.Imm(asm.R8, chmodSyscallNumber, "chmod_path"))
+	}
 
 	// fchmodat and fchmodat2: dirfd, pathname, mode.
 	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsDIOffset, asm.RFP, tempValue, recordStart+fdOffset, asm.Word)...,
+		readRegisterArgument(asm.R6, syscallArg0Offset, asm.RFP, tempValue, recordStart+fdOffset, asm.Word)...,
 	)
 	instructions = append(instructions,
-		readPathArgument(asm.R6, ptRegsSIOffset, asm.RFP, tempValue, recordStart+pathOffset)...,
+		readPathArgument(asm.R6, syscallArg1Offset, asm.RFP, tempValue, recordStart+pathOffset)...,
 	)
 	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsDXOffset, asm.RFP, tempValue, recordStart+modeOffset, asm.Word)...,
+		readRegisterArgument(asm.R6, syscallArg2Offset, asm.RFP, tempValue, recordStart+modeOffset, asm.Word)...,
 	)
 	instructions = append(instructions, asm.Ja.Label("emit"))
 
 	// chmod: pathname, mode.
-	instructions = append(instructions,
-		asm.Mov.Imm(asm.R0, 0).WithSymbol("chmod_path"),
-	)
-	instructions = append(instructions,
-		readPathArgument(asm.R6, ptRegsDIOffset, asm.RFP, tempValue, recordStart+pathOffset)...,
-	)
-	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsSIOffset, asm.RFP, tempValue, recordStart+modeOffset, asm.Word)...,
-	)
-	instructions = append(instructions, asm.Ja.Label("emit"))
+	if hasChmodSyscall {
+		instructions = append(instructions,
+			asm.Mov.Imm(asm.R0, 0).WithSymbol("chmod_path"),
+		)
+		instructions = append(instructions,
+			readPathArgument(asm.R6, syscallArg0Offset, asm.RFP, tempValue, recordStart+pathOffset)...,
+		)
+		instructions = append(instructions,
+			readRegisterArgument(asm.R6, syscallArg1Offset, asm.RFP, tempValue, recordStart+modeOffset, asm.Word)...,
+		)
+		instructions = append(instructions, asm.Ja.Label("emit"))
+	}
 
 	// fchmod: fd, mode.
 	instructions = append(instructions,
 		asm.Mov.Imm(asm.R0, 0).WithSymbol("fchmod_fd"),
 	)
 	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsDIOffset, asm.RFP, tempValue, recordStart+fdOffset, asm.Word)...,
+		readRegisterArgument(asm.R6, syscallArg0Offset, asm.RFP, tempValue, recordStart+fdOffset, asm.Word)...,
 	)
 	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsSIOffset, asm.RFP, tempValue, recordStart+modeOffset, asm.Word)...,
+		readRegisterArgument(asm.R6, syscallArg1Offset, asm.RFP, tempValue, recordStart+modeOffset, asm.Word)...,
 	)
 
 	instructions = append(instructions,
@@ -367,9 +371,10 @@ func (collector *ChmodCollector) normalize(raw chmodRecord) (events.Event, bool)
 }
 
 func (collector *ChmodCollector) resolvePath(pid int, raw chmodRecord) string {
-	switch raw.Syscall {
-	case chmodSyscallNumber:
+	if hasChmodSyscall && raw.Syscall == chmodSyscallNumber {
 		return resolveProcPath(collector.procRoot, pid, atFDCWD, cString(raw.FilePath[:]))
+	}
+	switch raw.Syscall {
 	case fchmodSyscallNumber:
 		return readProcFD(collector.procRoot, pid, int(raw.FD))
 	case fchmodatSyscallNumber, fchmodat2SyscallNumber:
@@ -380,9 +385,10 @@ func (collector *ChmodCollector) resolvePath(pid int, raw chmodRecord) string {
 }
 
 func chmodSyscallName(number uint32) string {
-	switch number {
-	case chmodSyscallNumber:
+	if hasChmodSyscall && number == chmodSyscallNumber {
 		return "chmod"
+	}
+	switch number {
 	case fchmodSyscallNumber:
 		return "fchmod"
 	case fchmodatSyscallNumber:

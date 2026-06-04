@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && (amd64 || arm64)
 
 package ebpf
 
@@ -25,10 +25,8 @@ import (
 )
 
 const (
-	execveSyscallNumber = 59
-	ptRegsDIOffset      = 112
-	filenameSize        = 256
-	commSize            = 16
+	filenameSize = 256
+	commSize     = 16
 )
 
 type ExecveCollector struct {
@@ -69,7 +67,7 @@ func NewExecveCollectorWithConfig(config RuntimeConfig) (*ExecveCollector, error
 	}, nil
 }
 
-// Run attaches an amd64 raw tracepoint collector and emits normalized execve
+// Run attaches a raw tracepoint collector and emits normalized execve
 // events until the context is canceled. Reading syscall arguments remains in
 // eBPF; slower parent metadata enrichment happens in userspace.
 func (collector *ExecveCollector) Run(ctx context.Context, sink chan<- events.Event) error {
@@ -188,7 +186,7 @@ func execveProgramSpec(ringBufferFD, dropCounterFD int) *cebpf.ProgramSpec {
 		asm.FnGetCurrentComm.Call(),
 
 		asm.LoadMem(asm.R3, asm.R6, 0, asm.DWord),
-		asm.Add.Imm(asm.R3, ptRegsDIOffset),
+		asm.Add.Imm(asm.R3, syscallArg0Offset),
 		asm.Mov.Reg(asm.R1, asm.RFP),
 		asm.Add.Imm(asm.R1, int32(tempPointer)),
 		asm.Mov.Imm(asm.R2, 8),

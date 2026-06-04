@@ -1,4 +1,4 @@
-//go:build ebpf_smoke && linux && amd64
+//go:build ebpf_smoke && linux && (amd64 || arm64)
 
 package ebpf
 
@@ -44,6 +44,7 @@ func TestFileWriteCollectorSmoke(t *testing.T) {
 		case event := <-sink:
 			if event.FilePath == path && event.Metadata["outcome"] == "success" {
 				cancel()
+				waitForCollectorShutdown(t, errors)
 				return
 			}
 		case err := <-errors:

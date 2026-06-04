@@ -10,8 +10,8 @@ go run ./cmd/runtime-guard demo
 go test ./...
 ```
 
-On Linux amd64, the live sensor streams normalized `execve`, IPv4/IPv6 `connect`,
-path-backed file write, and `chmod` events as JSON. It uses raw
+On Linux amd64 and native arm64, the live sensor streams normalized `execve`,
+IPv4/IPv6 `connect`, path-backed file write, and `chmod` events as JSON. It uses raw
 tracepoints and requires root or equivalent eBPF capabilities:
 
 ```sh
@@ -25,6 +25,8 @@ bounded in-kernel maps. File write and chmod report `success` or `failed`.
 Connect reports `success`, `in_progress`, or `failed` because non-blocking
 clients often return `EINPROGRESS`. A requested chmod execute bit does not
 prove that the bit was newly added.
+On arm64, direct `chmod` libc calls are captured through the `fchmodat` family
+provided by the arm64 syscall ABI.
 
 Persist the fake pipeline to a local SQLite database and inspect the result:
 

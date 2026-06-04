@@ -6,7 +6,7 @@ Updated: 2026-06-04
 
 Runtime Guard is **100% complete for the planned MVP**. The fake-event
 pipeline is runnable without root, deterministic detection and compression are
-implemented, SQLite persistence is hardened, Linux amd64 eBPF collectors are
+implemented, SQLite persistence is hardened, Linux amd64/native-arm64 eBPF collectors are
 present, the live event path uses a bounded async persistence queue, and the
 local LLM client is wired through the CLI. Live service runs expose tunable
 collector-to-analyzer, async persistence queue, async persistence batch,
@@ -69,12 +69,14 @@ eBPF raw tracepoints
   -> terminal report
 ```
 
-Implemented live Linux amd64 collectors:
+Implemented live Linux amd64/native-arm64 collectors:
 
 - `execve`
 - IPv4 and IPv6 `connect`
 - path-backed `write`, `writev`, `pwrite64`, `pwritev`, and `pwritev2`
-- `chmod`, `fchmod`, `fchmodat`, and `fchmodat2`
+- `chmod`, `fchmod`, `fchmodat`, and `fchmodat2` where exposed by the target
+  syscall ABI. On arm64, direct `chmod` libc calls are captured through
+  `fchmodat`/`fchmodat2`.
 
 Connect, file write, and chmod probes correlate syscall entry and exit with
 bounded in-kernel maps. Emitted records include the syscall return value and
@@ -163,7 +165,10 @@ Implemented deterministic rules:
   hostname data when available. This is a bounded PID/start-time cache; the
   hostname is not guaranteed to match the container-runtime display name.
 - The eBPF smoke suite covers local loopback behavior only. Broader stress
-  testing across kernel versions, containers, and network namespaces remains.
+  testing across kernel versions, containers, network namespaces, and arm64
+  hardware remains.
+- Arm64 support targets native 64-bit processes. The 32-bit compat syscall ABI
+  has not been implemented.
 - Earlier transient systemd stress runs reported high ring-buffer drops before
   the live path was tuned. A 30-minute Debian run processed about 3.6M
   normalized events with no persistence or correlation drops, but still had
@@ -173,8 +178,8 @@ Implemented deterministic rules:
   After self-PID exclusion, plugged-in idle, light desktop, and 30-minute
   normal-use all-collector stress runs completed with zero ring-buffer,
   syscall-correlation, and persistence drops. Broader stress testing across
-  heavier workloads, kernel versions, containers, and network namespaces
-  remains.
+  heavier workloads, kernel versions, containers, network namespaces, and arm64
+  hardware remains.
 - `runtime-guard show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 
@@ -261,7 +266,7 @@ deployment on specific target distributions.
 
 ```text
 cmd/runtime-guard/        CLI routing and live loop
-internal/ebpf/            Linux amd64 raw-tracepoint collectors
+internal/ebpf/            Linux amd64/native-arm64 raw-tracepoint collectors
 internal/events/          normalized event model and grouping
 internal/pipeline/        grouper -> detector -> compressor orchestration
 internal/detect/          deterministic rules and scoring

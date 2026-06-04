@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && (amd64 || arm64)
 
 package ebpf
 
@@ -20,14 +20,6 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 
 	"runtime-guard/internal/events"
-)
-
-const (
-	writeSyscallNumber    = 1
-	pwriteSyscallNumber   = 18
-	writevSyscallNumber   = 20
-	pwritevSyscallNumber  = 296
-	pwritev2SyscallNumber = 328
 )
 
 type FileWriteCollector struct {
@@ -242,14 +234,14 @@ func fileWriteEnterProgramSpec(pendingFD, correlationDropCounterFD, ignoredPID i
 		asm.FnGetCurrentComm.Call(),
 	)
 	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsDIOffset, asm.RFP, tempValue, recordStart+fdOffset, asm.Word)...,
+		readRegisterArgument(asm.R6, syscallArg0Offset, asm.RFP, tempValue, recordStart+fdOffset, asm.Word)...,
 	)
 	instructions = append(instructions,
 		asm.LoadMem(asm.R7, asm.RFP, recordStart+fdOffset, asm.Word),
 		asm.JLE.Imm(asm.R7, 2, "exit"),
 	)
 	instructions = append(instructions,
-		readRegisterArgument(asm.R6, ptRegsDXOffset, asm.RFP, tempValue, recordStart+countOffset, asm.DWord)...,
+		readRegisterArgument(asm.R6, syscallArg2Offset, asm.RFP, tempValue, recordStart+countOffset, asm.DWord)...,
 	)
 	instructions = append(instructions,
 		storePendingSyscall(pendingFD, keyOffset, recordStart)...,

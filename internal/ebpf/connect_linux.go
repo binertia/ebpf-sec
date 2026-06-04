@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && (amd64 || arm64)
 
 package ebpf
 
@@ -24,8 +24,6 @@ import (
 )
 
 const (
-	connectSyscallNumber     = 42
-	ptRegsSIOffset           = 104
 	addressFamilyIPv4        = 2
 	addressFamilyIPv6        = 10
 	sockaddrFamilySize       = 2
@@ -121,7 +119,7 @@ func NewRuntimeCollectorWithConfig(config RuntimeConfig) (Collector, error) {
 	return NewCompositeCollector(collectors...), nil
 }
 
-// Run attaches amd64 raw tracepoint collectors and emits completed normalized
+// Run attaches raw tracepoint collectors and emits completed normalized
 // IPv4 and IPv6 connect events until the context is canceled.
 func (collector *ConnectCollector) Run(ctx context.Context, sink chan<- events.Event) error {
 	if sink == nil {
@@ -274,7 +272,7 @@ func connectEnterProgramSpec(pendingFD, correlationDropCounterFD int) *cebpf.Pro
 		asm.FnGetCurrentComm.Call(),
 
 		asm.LoadMem(asm.R3, asm.R6, 0, asm.DWord),
-		asm.Add.Imm(asm.R3, ptRegsSIOffset),
+		asm.Add.Imm(asm.R3, syscallArg1Offset),
 		asm.Mov.Reg(asm.R1, asm.RFP),
 		asm.Add.Imm(asm.R1, int32(tempPointer)),
 		asm.Mov.Imm(asm.R2, 8),
