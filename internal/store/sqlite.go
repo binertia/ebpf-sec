@@ -80,6 +80,60 @@ func (store *SQLite) JournalMode(ctx context.Context) (string, error) {
 	return mode, nil
 }
 
+func (store *SQLite) Stats(ctx context.Context) (SQLiteStats, error) {
+	journalMode, err := store.JournalMode(ctx)
+	if err != nil {
+		return SQLiteStats{}, err
+	}
+	pageSize, err := querySQLiteInt64(ctx, store.db, "PRAGMA page_size")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("read SQLite page size: %w", err)
+	}
+	pageCount, err := querySQLiteInt64(ctx, store.db, "PRAGMA page_count")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("read SQLite page count: %w", err)
+	}
+	freelistCount, err := querySQLiteInt64(ctx, store.db, "PRAGMA freelist_count")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("read SQLite freelist count: %w", err)
+	}
+	eventCount, err := querySQLiteInt64(ctx, store.db, "SELECT COUNT(*) FROM events")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("count events: %w", err)
+	}
+	incidentCount, err := querySQLiteInt64(ctx, store.db, "SELECT COUNT(*) FROM incidents")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("count incidents: %w", err)
+	}
+	incidentEventCount, err := querySQLiteInt64(ctx, store.db, "SELECT COUNT(*) FROM incident_events")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("count incident event links: %w", err)
+	}
+	llmReportCount, err := querySQLiteInt64(ctx, store.db, "SELECT COUNT(*) FROM llm_reports")
+	if err != nil {
+		return SQLiteStats{}, fmt.Errorf("count LLM reports: %w", err)
+	}
+	return SQLiteStats{
+		JournalMode:         journalMode,
+		PageSize:            pageSize,
+		PageCount:           pageCount,
+		FreelistCount:       freelistCount,
+		EventCount:          eventCount,
+		IncidentCount:       incidentCount,
+		IncidentEventCount:  incidentEventCount,
+		LLMReportCount:      llmReportCount,
+		ApproxDatabaseBytes: pageSize * pageCount,
+	}, nil
+}
+
+func querySQLiteInt64(ctx context.Context, db *sql.DB, query string) (int64, error) {
+	var value int64
+	if err := db.QueryRowContext(ctx, query).Scan(&value); err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
 func (store *SQLite) SaveEvent(ctx context.Context, event events.Event) error {
 	if err := event.Validate(); err != nil {
 		return fmt.Errorf("save event: %w", err)

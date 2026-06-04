@@ -28,6 +28,18 @@ type EventValueSummary struct {
 	Count int64
 }
 
+type SQLiteStats struct {
+	JournalMode         string
+	PageSize            int64
+	PageCount           int64
+	FreelistCount       int64
+	EventCount          int64
+	IncidentCount       int64
+	IncidentEventCount  int64
+	LLMReportCount      int64
+	ApproxDatabaseBytes int64
+}
+
 // Store is intentionally small so SQLite can be added without coupling the
 // event pipeline to database details.
 type Store interface {

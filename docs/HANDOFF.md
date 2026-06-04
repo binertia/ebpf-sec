@@ -92,8 +92,8 @@ Before calling this distribution-grade, finish these tracks:
   are required.
 - Expand release automation beyond the initial CI gate if publishing packages
   requires multiple architectures or package formats.
-- Document operational policy for SQLite database growth, retention, backup,
-  compaction, and log retention.
+- Validate the operational policy in [`OPERATIONS.md`](OPERATIONS.md) under an
+  installed service on each release target.
 - Decide the release claim for arm64. Keep it experimental unless a native
   arm64 host completes the smoke/stress runbook in [`ARM_TEST.md`](ARM_TEST.md).
 - Review `scripts/dependency-review.sh --out dist/dependency-review.md` output
@@ -180,6 +180,9 @@ Implemented deterministic rules:
 - `runtime-guard event-summary --type file_write` summarizes stored event
   volume by process/executable and file path so stress databases can identify
   high-volume file-write sources without manual SQLite queries.
+- `runtime-guard db-stats` reports SQLite table counts, page/freelist stats,
+  journal mode, and database/WAL/SHM file sizes for operations and retention
+  planning.
 - `runtime-guard run --event-buffer`, `--persist-buffer`,
   `--persist-batch-size`, and `--ring-buffer-size` tune burst capacity.
   `--collectors` narrows live collection to a comma-separated subset of
@@ -350,6 +353,7 @@ internal/persistqueue/    bounded async event persistence queue
 testdata/events/          fake normalized event fixtures
 docs/                     plan and this handoff
 docs/ARM_TEST.md          native arm64 VPS experiment
+docs/OPERATIONS.md        database growth, backup, compaction, and log guidance
 docs/STRESS_VALIDATION.md multi-host stress validation matrix
 packaging/systemd/        local systemd service template
 ```

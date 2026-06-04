@@ -79,6 +79,8 @@ func run(args []string, out io.Writer) error {
 		return runEvents(args[1:], out)
 	case "event-summary":
 		return runEventSummary(args[1:], out)
+	case "db-stats":
+		return runDBStats(args[1:], out)
 	case "incidents":
 		return runIncidents(args[1:], out)
 	case "show":
@@ -529,6 +531,82 @@ func runEventSummary(args []string, out io.Writer) error {
 	return nil
 }
 
+func runDBStats(args []string, out io.Writer) error {
+	flags := flag.NewFlagSet("db-stats", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	databasePath := flags.String("db", defaultDB, "SQLite database path")
+	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
+		return errors.New("usage: runtime-guard db-stats [--db path]")
+	}
+	if *databasePath == ":memory:" {
+		return errors.New("db-stats requires a filesystem SQLite database")
+	}
+
+	database, err := openExistingSQLite(*databasePath)
+	if err != nil {
+		return err
+	}
+	defer database.Close()
+
+	stats, err := database.Stats(context.Background())
+	if err != nil {
+		return err
+	}
+	databaseBytes, err := regularFileSize(*databasePath)
+	if err != nil {
+		return err
+	}
+	walBytes, err := optionalRegularFileSize(*databasePath + "-wal")
+	if err != nil {
+		return err
+	}
+	shmBytes, err := optionalRegularFileSize(*databasePath + "-shm")
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, "database stats")
+	fmt.Fprintf(out, "path: %s\n", report.TerminalText(*databasePath))
+	fmt.Fprintf(out, "journal_mode: %s\n", report.TerminalText(stats.JournalMode))
+	fmt.Fprintf(out, "database_bytes: %d\n", databaseBytes)
+	fmt.Fprintf(out, "wal_bytes: %d\n", walBytes)
+	fmt.Fprintf(out, "shm_bytes: %d\n", shmBytes)
+	fmt.Fprintf(out, "page_size: %d\n", stats.PageSize)
+	fmt.Fprintf(out, "page_count: %d\n", stats.PageCount)
+	fmt.Fprintf(out, "freelist_count: %d\n", stats.FreelistCount)
+	fmt.Fprintf(out, "approx_database_bytes: %d\n", stats.ApproxDatabaseBytes)
+	fmt.Fprintf(out, "events: %d\n", stats.EventCount)
+	fmt.Fprintf(out, "incidents: %d\n", stats.IncidentCount)
+	fmt.Fprintf(out, "incident_event_links: %d\n", stats.IncidentEventCount)
+	fmt.Fprintf(out, "llm_reports: %d\n", stats.LLMReportCount)
+	return nil
+}
+
+func regularFileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, fmt.Errorf("inspect file %q: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return 0, fmt.Errorf("expected regular file: %q", path)
+	}
+	return info.Size(), nil
+}
+
+func optionalRegularFileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("inspect file %q: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return 0, fmt.Errorf("expected regular file: %q", path)
+	}
+	return info.Size(), nil
+}
+
 func runIncidents(args []string, out io.Writer) error {
 	flags := flag.NewFlagSet("incidents", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -658,6 +736,7 @@ Usage:
   runtime-guard events [--db path] [--limit count]    List stored normalized events
   runtime-guard event-summary [--db path] [--type event_type] [--limit count]
                                                        Summarize stored event volume by process and file path
+  runtime-guard db-stats [--db path]                  Show SQLite table counts and file sizes
   runtime-guard incidents [--db path] [--limit count] List stored incidents
   runtime-guard show [--db path] <incident_id>        Show a stored incident
   runtime-guard llm [--db path] <incident_id>         Analyze a stored incident with a local LLM

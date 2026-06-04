@@ -90,9 +90,13 @@ Inspect stored data:
 ```sh
 sudo /usr/local/bin/runtime-guard events --db /var/lib/runtime-guard/runtime-guard.db
 sudo /usr/local/bin/runtime-guard event-summary --db /var/lib/runtime-guard/runtime-guard.db --type file_write
+sudo /usr/local/bin/runtime-guard db-stats --db /var/lib/runtime-guard/runtime-guard.db
 sudo /usr/local/bin/runtime-guard incidents --db /var/lib/runtime-guard/runtime-guard.db
 sudo /usr/local/bin/runtime-guard show --db /var/lib/runtime-guard/runtime-guard.db <incident_id>
 ```
+
+See [`OPERATIONS.md`](OPERATIONS.md) for database growth, backup, compaction,
+and journal retention guidance.
 
 ## Local LLM Analysis
 

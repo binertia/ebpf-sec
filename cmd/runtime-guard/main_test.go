@@ -399,6 +399,49 @@ func TestRunEventSummary(t *testing.T) {
 	}
 }
 
+func TestRunDBStats(t *testing.T) {
+	databaseDirectory := t.TempDir()
+	if err := os.Chmod(databaseDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	databasePath := filepath.Join(databaseDirectory, "runtime-guard.db")
+	if err := run([]string{
+		"demo",
+		"--db", databasePath,
+		"../../testdata/events/web-download-execute-connect.json",
+	}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	var output bytes.Buffer
+	if err := run([]string{"db-stats", "--db", databasePath}, &output); err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"database stats",
+		"path: " + databasePath,
+		"journal_mode: wal",
+		"database_bytes:",
+		"wal_bytes:",
+		"shm_bytes:",
+		"events: 5",
+		"incidents: 1",
+		"incident_event_links: 5",
+		"llm_reports: 0",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Fatalf("output = %q, want substring %q", output.String(), expected)
+		}
+	}
+
+	if err := run([]string{"db-stats", "--db", databasePath, "extra"}, &bytes.Buffer{}); err == nil {
+		t.Fatal("expected usage error")
+	}
+	if err := run([]string{"db-stats", "--db", ":memory:"}, &bytes.Buffer{}); err == nil {
+		t.Fatal("expected in-memory database error")
+	}
+}
+
 func TestInspectionCommandsRejectMissingDatabase(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -406,6 +449,7 @@ func TestInspectionCommandsRejectMissingDatabase(t *testing.T) {
 	}{
 		{name: "events", args: []string{"events"}},
 		{name: "event-summary", args: []string{"event-summary"}},
+		{name: "db-stats", args: []string{"db-stats"}},
 		{name: "incidents", args: []string{"incidents"}},
 		{name: "show", args: []string{"show", "inc-missing"}},
 		{name: "llm", args: []string{"llm", "inc-missing"}},

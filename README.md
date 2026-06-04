@@ -85,7 +85,8 @@ systemd deployment notes, including transient capability validation before
 installing a narrower service override. See [`docs/ARM_TEST.md`](docs/ARM_TEST.md)
 for the separate native arm64 VPS experiment and
 [`docs/STRESS_VALIDATION.md`](docs/STRESS_VALIDATION.md) for the active
-multi-host validation track.
+multi-host validation track. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
+for database growth, backup, compaction, and journal retention guidance.
 
 For the non-root release gate used by CI and pre-release checks, run:
 

@@ -103,6 +103,43 @@ func TestSQLiteUsesWALMode(t *testing.T) {
 	}
 }
 
+func TestSQLiteStats(t *testing.T) {
+	ctx := context.Background()
+	database := openTestSQLite(t)
+	normalizedEvents := loadFixture(t, "../../testdata/events/web-download-execute-connect.json")
+	if err := database.SaveEvents(ctx, normalizedEvents); err != nil {
+		t.Fatal(err)
+	}
+	detection := detect.NewBasic().Analyze(normalizedEvents)
+	incident, err := compress.NewBasic().Compress(normalizedEvents, detection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.SaveIncidentWithEvents(ctx, incident, normalizedEvents); err != nil {
+		t.Fatal(err)
+	}
+
+	stats, err := database.Stats(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.JournalMode != "wal" {
+		t.Fatalf("journal mode = %q, want wal", stats.JournalMode)
+	}
+	if stats.EventCount != int64(len(normalizedEvents)) {
+		t.Fatalf("event count = %d, want %d", stats.EventCount, len(normalizedEvents))
+	}
+	if stats.IncidentCount != 1 {
+		t.Fatalf("incident count = %d, want 1", stats.IncidentCount)
+	}
+	if stats.IncidentEventCount != int64(len(normalizedEvents)) {
+		t.Fatalf("incident event count = %d, want %d", stats.IncidentEventCount, len(normalizedEvents))
+	}
+	if stats.PageSize <= 0 || stats.PageCount <= 0 || stats.ApproxDatabaseBytes <= 0 {
+		t.Fatalf("unexpected size stats: %#v", stats)
+	}
+}
+
 func TestSQLiteRedactsPersistedEventsAndIncidents(t *testing.T) {
 	ctx := context.Background()
 	database := openTestSQLite(t)
