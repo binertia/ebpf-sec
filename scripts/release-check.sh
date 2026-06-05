@@ -129,6 +129,7 @@ run bash -n \
 	scripts/build-release.sh \
 	scripts/build-deb.sh \
 	scripts/build-rpm.sh \
+	scripts/release-bundle.sh \
 	scripts/release-manifest.sh \
 	scripts/package-install-smoke.sh \
 	scripts/rpm-install-smoke.sh \
@@ -144,6 +145,7 @@ run go vet ./...
 run go test -race ./...
 run go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
 release_dir="$artifact_check_dir/release"
+bundle_dir="$artifact_check_dir/bundle"
 check_version=0.0.0-check
 run scripts/build-release.sh --version "$check_version" --out "$release_dir"
 verify_tar_artifact "$release_dir" "$check_version"
@@ -155,6 +157,13 @@ else
 	echo
 	echo "===== Debian package build skipped: dpkg-deb unavailable ====="
 fi
+bundle_args=(--version "$check_version" --out "$bundle_dir" --skip-dependency-review --allow-dirty)
+if command -v dpkg-deb >/dev/null 2>&1; then
+	bundle_args+=(--maintainer "$check_maintainer")
+else
+	bundle_args+=(--skip-deb)
+fi
+run scripts/release-bundle.sh "${bundle_args[@]}"
 if command -v rpmbuild >/dev/null 2>&1; then
 	check_packager="Tracejutsu Check <check@example.invalid>"
 	rpm_check_version="${check_version//-/.}"

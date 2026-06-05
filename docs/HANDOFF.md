@@ -166,6 +166,10 @@ An operations validation helper is also present for installed service hosts; it
 checks service state, SQLite `db-stats`, WAL mode, file-write summary, incident
 listing, recent runtime stats, and an online SQLite backup without stopping the
 service.
+A release bundle helper is also present. It builds artifacts into an empty
+directory, refuses placeholder package metadata by default, writes
+`dependency-review.md`, regenerates `SHA256SUMS`, and can produce a detached
+manifest signature.
 
 The current handoff target is a production/distribution-grade release. The
 approximate readiness is:
@@ -197,8 +201,8 @@ Before calling this distribution-grade, finish these tracks:
   metadata and staged artifact timestamps where their toolchains support it,
   and `scripts/release-manifest.sh --sign` can produce a detached signature for
   the combined checksum manifest.
-- Expand local release automation if publishing packages requires multiple
-  architectures or package formats.
+- Expand local release automation further only if publishing packages requires
+  more package formats or a hosted package repository.
 - Repeat `scripts/ops-validation.sh --yes` under an installed service on any
   additional release target that needs its own operations evidence. Debian 12
   Bookworm has passed this check.
@@ -445,13 +449,15 @@ go run ./cmd/tracejutsu show --db "$DB" inc-evt-001
    scripts/release-check.sh
    ```
 
-3. Run `scripts/build-release.sh --version v0.1.0` and
-   `scripts/build-deb.sh --version v0.1.0` once on the release host, then
-   inspect the generated artifacts and `tracejutsu version` output.
-4. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
-   review the dependency/license inventory.
-5. Generate `scripts/release-manifest.sh --dir dist --sign` and verify the
-   published `SHA256SUMS` plus `SHA256SUMS.asc` on a clean machine.
+3. Build the release directory with real maintainer metadata:
+
+   ```sh
+   scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.com>" --sign
+   ```
+
+4. Inspect the generated artifacts, `tracejutsu version` output, and
+   `dependency-review.md`.
+5. Verify the published `SHA256SUMS` plus `SHA256SUMS.asc` on a clean machine.
 6. Keep `validation-artifacts/debian-13-docker-container-host.tar.gz` as the
    container-host evidence bundle for release notes.
 7. Re-run package lifecycle smoke against the actual release `.deb` on any

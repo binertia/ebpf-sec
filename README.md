@@ -106,6 +106,14 @@ To build a Debian package for the current Linux architecture:
 scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 ```
 
+To build a complete release directory with tarball, Debian package, dependency
+review, checksum manifest, and optional signature:
+
+```sh
+scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
+scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.com>" --sign
+```
+
 To build an experimental RPM package when `rpmbuild` is available:
 
 ```sh

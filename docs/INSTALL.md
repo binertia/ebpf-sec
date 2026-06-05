@@ -23,6 +23,16 @@ scripts/build-release.sh --version v0.1.0
 scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 ```
 
+For publishing, prefer the release bundle helper. It writes artifacts into an
+empty directory, refuses placeholder package metadata by default, generates
+`dependency-review.md`, creates `SHA256SUMS`, and can add a detached GPG
+signature:
+
+```sh
+scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
+scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.com>" --sign
+```
+
 When `rpmbuild` is available, an experimental RPM can also be built:
 
 ```sh
@@ -105,8 +115,8 @@ scripts/ops-validation.sh --yes
 ```
 
 Before publishing artifacts, generate a single checksum manifest for the built
-tarball, Debian package, and any RPM package. Add `--sign` to write and verify
-an armored detached GPG signature:
+tarball, Debian package, any RPM package, and `dependency-review.md` when
+present. Add `--sign` to write and verify an armored detached GPG signature:
 
 ```sh
 scripts/release-manifest.sh --dir dist

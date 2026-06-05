@@ -13,6 +13,7 @@ The manifest includes:
   - tracejutsu-*.tar.gz
   - tracejutsu_*.deb
   - tracejutsu-*.rpm
+  - dependency-review.md, when present
 
 By default the script regenerates DIR/SHA256SUMS and verifies it. With --sign,
 it also writes DIR/SHA256SUMS.asc as an armored detached GPG signature and
@@ -85,8 +86,19 @@ require_command() {
 
 artifact_paths() {
 	find "$out_dir" -maxdepth 1 -type f \
-		\( -name 'tracejutsu-*.tar.gz' -o -name 'tracejutsu_*.deb' -o -name 'tracejutsu-*.rpm' \) \
+		\( -name 'tracejutsu-*.tar.gz' -o -name 'tracejutsu_*.deb' -o -name 'tracejutsu-*.rpm' -o -name 'dependency-review.md' \) \
 		-print | LC_ALL=C sort
+}
+
+artifact_names() {
+	local artifact
+	artifact_paths | while IFS= read -r artifact; do
+		printf '%s\n' "${artifact##*/}"
+	done | LC_ALL=C sort
+}
+
+manifest_names() {
+	awk '{name=$2; sub(/^\*/, "", name); print name}' "$manifest" | LC_ALL=C sort
 }
 
 write_manifest() {
@@ -117,6 +129,27 @@ verify_manifest() {
 		cd "$out_dir"
 		sha256sum -c SHA256SUMS
 	)
+	verify_manifest_coverage
+}
+
+verify_manifest_coverage() {
+	local missing
+	local extra
+	missing="$(comm -23 <(artifact_names) <(manifest_names))"
+	extra="$(comm -13 <(artifact_names) <(manifest_names))"
+	if [[ -z "$missing" && -z "$extra" ]]; then
+		return
+	fi
+	echo "manifest artifact list does not match release artifacts" >&2
+	if [[ -n "$missing" ]]; then
+		echo "missing from manifest:" >&2
+		printf '%s\n' "$missing" >&2
+	fi
+	if [[ -n "$extra" ]]; then
+		echo "extra in manifest:" >&2
+		printf '%s\n' "$extra" >&2
+	fi
+	exit 1
 }
 
 sign_manifest_file() {
@@ -144,7 +177,9 @@ verify_signature() {
 }
 
 require_command find
+require_command awk
 require_command chmod
+require_command comm
 require_command mktemp
 require_command mv
 require_command sha256sum
