@@ -106,6 +106,24 @@ package cleanup path.
 The RPM smoke helper follows the same safety model, using `--rpm` for release
 artifacts and building a temporary RPM only when `--rpm` is omitted.
 
+To publish Debian packages from static object storage or a normal web server,
+generate experimental APT repository metadata from the release `.deb` files:
+
+```sh
+scripts/build-apt-repo.sh --deb dist/tracejutsu_0.1.0_amd64.deb --out dist/apt-repo --sign
+```
+
+The helper writes `pool/`, `dists/`, `Packages`, `Packages.gz`, `Release`, and
+signed `InRelease`/`Release.gpg` files when `--sign` is supplied. On a fresh
+Debian/Ubuntu validation host, test installation through the repository before
+treating it as a release channel. Use `--apt-trusted` only for local unsigned
+test repositories; use `--apt-keyring` for a signed published repository:
+
+```sh
+scripts/package-install-smoke.sh --apt-repo dist/apt-repo --apt-trusted --version 0.1.0 --duration 10m --yes
+scripts/package-install-smoke.sh --apt-repo https://example.invalid/tracejutsu/apt --apt-keyring ./tracejutsu-archive-keyring.gpg --version 0.1.0 --duration 10m --yes
+```
+
 When you intentionally leave the package installed after validation, run the
 operations helper to check the installed database, runtime stats, and online
 backup path without stopping the service:

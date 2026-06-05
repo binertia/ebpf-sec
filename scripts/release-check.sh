@@ -106,10 +106,28 @@ verify_rpm_artifact() {
 	fi
 }
 
+verify_apt_repo() {
+	local repo_dir=$1
+	local suite=$2
+	local version=$3
+	local packages_file="$repo_dir/dists/$suite/main/binary-amd64/Packages"
+	local release_file="$repo_dir/dists/$suite/Release"
+	grep -F "Package: tracejutsu" "$packages_file" >/dev/null
+	grep -F "Version: $version" "$packages_file" >/dev/null
+	grep -F "Filename: pool/main/t/tracejutsu/tracejutsu_${version}_amd64.deb" "$packages_file" >/dev/null
+	gzip -t "$packages_file.gz"
+	grep -F "Architectures: amd64" "$release_file" >/dev/null
+	grep -F "Components: main" "$release_file" >/dev/null
+	grep -F "SHA256:" "$release_file" >/dev/null
+	grep -F "main/binary-amd64/Packages" "$release_file" >/dev/null
+	grep -F "main/binary-amd64/Packages.gz" "$release_file" >/dev/null
+}
+
 require_command bash
 require_command git
 require_command go
 require_command grep
+require_command gzip
 require_command mktemp
 require_command sha256sum
 require_command tar
@@ -129,6 +147,7 @@ run bash -n \
 	scripts/build-release.sh \
 	scripts/build-deb.sh \
 	scripts/build-rpm.sh \
+	scripts/build-apt-repo.sh \
 	scripts/release-bundle.sh \
 	scripts/release-manifest.sh \
 	scripts/package-install-smoke.sh \
@@ -146,6 +165,7 @@ run go test -race ./...
 run go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
 release_dir="$artifact_check_dir/release"
 bundle_dir="$artifact_check_dir/bundle"
+apt_repo_dir="$artifact_check_dir/apt-repo"
 check_version=0.0.0-check
 run scripts/build-release.sh --version "$check_version" --out "$release_dir"
 verify_tar_artifact "$release_dir" "$check_version"
@@ -153,6 +173,8 @@ if command -v dpkg-deb >/dev/null 2>&1; then
 	check_maintainer="Tracejutsu Check <check@example.invalid>"
 	run scripts/build-deb.sh --version "$check_version" --out "$release_dir" --maintainer "$check_maintainer"
 	verify_deb_artifact "$release_dir" "$check_version" "$check_maintainer"
+	run scripts/build-apt-repo.sh --deb "$release_dir/tracejutsu_${check_version}_amd64.deb" --out "$apt_repo_dir"
+	verify_apt_repo "$apt_repo_dir" stable "$check_version"
 else
 	echo
 	echo "===== Debian package build skipped: dpkg-deb unavailable ====="

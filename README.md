@@ -136,6 +136,19 @@ against the release `.deb`:
 scripts/package-install-smoke.sh --deb dist/tracejutsu_0.1.0_amd64.deb --duration 2m --yes
 ```
 
+To generate an experimental static APT repository from release `.deb` files:
+
+```sh
+scripts/build-apt-repo.sh --deb dist/tracejutsu_0.1.0_amd64.deb --out dist/apt-repo --sign
+```
+
+On a fresh Debian/Ubuntu validation host, test installation through that APT
+source. Use `--apt-trusted` only for local unsigned test repositories:
+
+```sh
+scripts/package-install-smoke.sh --apt-repo dist/apt-repo --apt-trusted --version 0.1.0 --duration 10m --yes
+```
+
 To generate and optionally sign a release checksum manifest:
 
 ```sh

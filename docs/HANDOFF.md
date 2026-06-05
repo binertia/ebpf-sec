@@ -170,6 +170,11 @@ A release bundle helper is also present. It builds artifacts into an empty
 directory, refuses placeholder package metadata by default, writes
 `dependency-review.md`, regenerates `SHA256SUMS`, and can produce a detached
 manifest signature.
+An experimental static APT repository helper is also present. It builds
+`pool/` and `dists/` metadata from release `.deb` files and can sign
+`InRelease` plus `Release.gpg`. The package install smoke helper can now
+configure a temporary APT source with `--apt-repo` and validate installation
+through that repository; a fresh-host run of that path is still pending.
 
 The current handoff target is a production/distribution-grade release. The
 approximate readiness is:
@@ -203,6 +208,10 @@ Before calling this distribution-grade, finish these tracks:
   the combined checksum manifest.
 - Expand local release automation further only if publishing packages requires
   more package formats or a hosted package repository.
+- Validate the experimental APT repository helper by publishing or copying
+  `dist/apt-repo` to a fresh Debian/Ubuntu target, then running
+  `scripts/package-install-smoke.sh --apt-repo ... --apt-keyring ...` for a
+  signed repository or `--apt-trusted` for a local unsigned test repository.
 - Repeat `scripts/ops-validation.sh --yes` under an installed service on any
   additional release target that needs its own operations evidence. Debian 12
   Bookworm has passed this check.

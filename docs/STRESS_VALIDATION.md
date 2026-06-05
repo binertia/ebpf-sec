@@ -141,6 +141,14 @@ persistent session makes the resulting log and package state easier to audit.
 Omit `--deb` only when intentionally testing a helper-built temporary package
 instead of the release artifact.
 
+When validating the experimental static APT repository path, publish or copy
+the generated repo to the target and install through a temporary APT source.
+Use `--apt-trusted` only for local unsigned test repositories:
+
+```sh
+scripts/package-install-smoke.sh --apt-repo dist/apt-repo --apt-trusted --version 0.1.0 --duration 10m --yes
+```
+
 On Fedora/RHEL-compatible targets where an RPM is being evaluated, run the RPM
 lifecycle helper instead:
 

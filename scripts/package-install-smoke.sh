@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
 	cat <<'EOF'
-Usage: scripts/package-install-smoke.sh [--deb PATH] [--duration 2m] [--version VERSION] [--allow-existing-state] [--keep-installed] [--purge-state] [--yes]
+Usage: scripts/package-install-smoke.sh [--deb PATH | --apt-repo PATH_OR_URL] [--duration 2m] [--version VERSION] [--allow-existing-state] [--keep-installed] [--purge-state] [--yes]
 
 Builds a temporary Debian package, or uses an existing package supplied with
 --deb, installs it, verifies that the package does not enable or start
@@ -18,10 +18,21 @@ directory already exists unless the relevant override is supplied.
 Options:
   --deb PATH                 Install and validate an existing tracejutsu .deb
                              instead of building a temporary package.
+  --apt-repo PATH_OR_URL     Configure a temporary APT source and install the
+                             tracejutsu package with apt. Local paths and
+                             http(s) URLs are supported.
+  --apt-suite SUITE          APT suite to use with --apt-repo. Default: stable.
+  --apt-component COMPONENT  APT component to use with --apt-repo.
+                             Default: main.
+  --apt-keyring PATH         Keyring file for a signed APT source. Copied to
+                             /etc/apt/keyrings for the temporary source.
+  --apt-trusted              Mark the temporary APT source as trusted. Use only
+                             for local unsigned test repositories.
   --duration DURATION        How long to run the installed service. Default: 2m.
   --version VERSION          Package version to build. Default is a unique
                              0.0.0+install.smoke.TIMESTAMP.PID value. With
-                             --deb, verifies the package version if supplied.
+                             --deb or --apt-repo, verifies the package version
+                             if supplied.
   --allow-existing-state     Allow an existing /var/lib/tracejutsu directory.
   --keep-installed           Leave the package installed after validation.
   --purge-state              Remove /var/lib/tracejutsu after validation.
@@ -33,6 +44,11 @@ EOF
 duration=2m
 version=""
 deb_path_input=""
+apt_repo_input=""
+apt_suite=stable
+apt_component=main
+apt_keyring_input=""
+apt_trusted=0
 allow_existing_state=0
 keep_installed=0
 purge_state=0
@@ -48,6 +64,42 @@ while [[ $# -gt 0 ]]; do
 		fi
 		deb_path_input=$2
 		shift 2
+		;;
+	--apt-repo)
+		if [[ $# -lt 2 ]]; then
+			echo "--apt-repo requires a value" >&2
+			exit 2
+		fi
+		apt_repo_input=$2
+		shift 2
+		;;
+	--apt-suite)
+		if [[ $# -lt 2 ]]; then
+			echo "--apt-suite requires a value" >&2
+			exit 2
+		fi
+		apt_suite=$2
+		shift 2
+		;;
+	--apt-component)
+		if [[ $# -lt 2 ]]; then
+			echo "--apt-component requires a value" >&2
+			exit 2
+		fi
+		apt_component=$2
+		shift 2
+		;;
+	--apt-keyring)
+		if [[ $# -lt 2 ]]; then
+			echo "--apt-keyring requires a value" >&2
+			exit 2
+		fi
+		apt_keyring_input=$2
+		shift 2
+		;;
+	--apt-trusted)
+		apt_trusted=1
+		shift
 		;;
 	--duration)
 		if [[ $# -lt 2 ]]; then
@@ -120,6 +172,51 @@ absolute_existing_file() {
 	dir="$(cd "$(dirname "$path")" && pwd)"
 	base="$(basename "$path")"
 	printf '%s/%s\n' "$dir" "$base"
+}
+
+absolute_existing_dir() {
+	local path=$1
+	local dir
+	if [[ "$path" != /* ]]; then
+		path="$invoke_cwd/$path"
+	fi
+	if [[ ! -d "$path" ]]; then
+		echo "directory does not exist: $path" >&2
+		exit 1
+	fi
+	dir="$(cd "$path" && pwd)"
+	printf '%s\n' "$dir"
+}
+
+validate_apt_label() {
+	local name=$1
+	local value=$2
+	if [[ ! "$value" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+		echo "$name contains unsupported characters: $value" >&2
+		exit 2
+	fi
+}
+
+apt_repo_source_uri() {
+	local input=$1
+	local local_dir
+	case "$input" in
+	http://*|https://*|file:*)
+		if [[ "$input" =~ [[:space:]] ]]; then
+			echo "APT repository URI must not contain whitespace: $input" >&2
+			exit 2
+		fi
+		printf '%s\n' "$input"
+		;;
+	*)
+		local_dir="$(absolute_existing_dir "$input")"
+		if [[ "$local_dir" =~ [[:space:]] ]]; then
+			echo "local APT repository path must not contain whitespace: $local_dir" >&2
+			exit 2
+		fi
+		printf 'file:%s\n' "$local_dir"
+		;;
+	esac
 }
 
 deb_field() {
@@ -250,11 +347,27 @@ remove_package_if_installed() {
 	fi
 }
 
+remove_apt_source_if_configured() {
+	if [[ -n "${apt_source_file:-}" ]]; then
+		sudo rm -f -- "$apt_source_file" >/dev/null 2>&1 || true
+		apt_source_file=""
+	fi
+	if [[ -n "${apt_keyring_file:-}" ]]; then
+		sudo rm -f -- "$apt_keyring_file" >/dev/null 2>&1 || true
+		apt_keyring_file=""
+	fi
+	if [[ "${apt_source_configured:-0}" -eq 1 ]]; then
+		sudo apt-get update >/dev/null 2>&1 || true
+		apt_source_configured=0
+	fi
+}
+
 cleanup() {
 	local status=$?
 	trap - EXIT INT TERM HUP
 	stop_service_if_started
 	remove_package_if_installed
+	remove_apt_source_if_configured
 	if [[ "$purge_state" -eq 1 ]]; then
 		sudo rm -rf -- "$state_dir" >/dev/null 2>&1 || true
 	fi
@@ -273,6 +386,7 @@ require_command dpkg-query
 require_command find
 require_command flock
 require_command grep
+require_command install
 require_command journalctl
 require_command mktemp
 require_command sha256sum
@@ -283,6 +397,24 @@ require_command timeout
 if ! timeout "$duration" true >/dev/null 2>&1; then
 	echo "invalid --duration for timeout/sleep: $duration" >&2
 	exit 2
+fi
+
+if [[ -n "$deb_path_input" && -n "$apt_repo_input" ]]; then
+	echo "--deb and --apt-repo are mutually exclusive" >&2
+	exit 2
+fi
+if [[ -n "$apt_keyring_input" && "$apt_trusted" -eq 1 ]]; then
+	echo "--apt-keyring and --apt-trusted are mutually exclusive" >&2
+	exit 2
+fi
+if [[ -n "$apt_repo_input" ]]; then
+	require_command apt-get
+	validate_apt_label apt-suite "$apt_suite"
+	validate_apt_label apt-component "$apt_component"
+	if [[ -z "$apt_keyring_input" && "$apt_trusted" -ne 1 ]]; then
+		echo "--apt-repo requires either --apt-keyring for signed repositories or --apt-trusted for local unsigned test repositories" >&2
+		exit 2
+	fi
 fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -300,13 +432,25 @@ fi
 run_id="$(date +%Y%m%d%H%M%S)-$$"
 state_dir=/var/lib/tracejutsu
 use_existing_deb=0
+use_apt_repo=0
 deb_path=""
 deb_package_version=""
 deb_package_arch=""
+apt_source_uri=""
+apt_source_file=""
+apt_keyring=""
+apt_keyring_file=""
+apt_source_configured=0
 if [[ -n "$deb_path_input" ]]; then
 	use_existing_deb=1
 	deb_path="$(absolute_existing_file "$deb_path_input")"
 	verify_tracejutsu_deb_metadata "$deb_path"
+elif [[ -n "$apt_repo_input" ]]; then
+	use_apt_repo=1
+	apt_source_uri="$(apt_repo_source_uri "$apt_repo_input")"
+	if [[ -n "$apt_keyring_input" ]]; then
+		apt_keyring="$(absolute_existing_file "$apt_keyring_input")"
+	fi
 elif [[ -z "$version" ]]; then
 	version="0.0.0+install.smoke.$(date +%Y%m%d%H%M%S).$$"
 fi
@@ -315,6 +459,39 @@ started_service=0
 installed_package=0
 sudo_keepalive_pid=""
 tmp_dir=""
+
+configure_apt_source() {
+	local source_options=()
+	local option_text=""
+	local source_line
+	local keyring_ext
+	apt_source_file="/etc/apt/sources.list.d/tracejutsu-smoke-$run_id.list"
+	if [[ "$apt_trusted" -eq 1 ]]; then
+		source_options+=(trusted=yes)
+	fi
+	if [[ -n "$apt_keyring" ]]; then
+		case "$apt_keyring" in
+		*.asc)
+			keyring_ext=.asc
+			;;
+		*)
+			keyring_ext=.gpg
+			;;
+		esac
+		apt_keyring_file="/etc/apt/keyrings/tracejutsu-smoke-$run_id$keyring_ext"
+		sudo install -d -o root -g root -m 0755 /etc/apt/keyrings
+		sudo install -o root -g root -m 0644 "$apt_keyring" "$apt_keyring_file"
+		source_options+=("signed-by=$apt_keyring_file")
+	fi
+	if [[ "${#source_options[@]}" -gt 0 ]]; then
+		option_text="[$(IFS=,; printf '%s' "${source_options[*]}")] "
+	fi
+	source_line="deb ${option_text}${apt_source_uri} ${apt_suite} ${apt_component}"
+	sudo sh -c 'set -eu; printf "%s\n" "$1" > "$2"' sh "$source_line" "$apt_source_file"
+	sudo chmod 0644 "$apt_source_file"
+	apt_source_configured=1
+	sudo apt-get update
+}
 
 refuse_existing_tracejutsu
 
@@ -329,6 +506,13 @@ if [[ "$use_existing_deb" -eq 1 ]]; then
   - package version: $deb_package_version
   - package architecture: $deb_package_arch
 EOF
+elif [[ "$use_apt_repo" -eq 1 ]]; then
+	cat <<EOF
+  - configure temporary APT source: $apt_source_uri
+  - APT suite/component: $apt_suite $apt_component
+  - APT trust mode: $([[ "$apt_trusted" -eq 1 ]] && printf 'trusted test source' || printf 'signed-by keyring')
+  - install package with apt: tracejutsu$([[ -n "$version" ]] && printf '=%s' "${version#v}" || true)
+EOF
 else
 	cat <<EOF
   - build a temporary Debian package version: $version
@@ -342,11 +526,13 @@ cat <<EOF
   - validate final runtime drop counters
   - stop packaged service
   - remove package after validation: $([[ "$keep_installed" -eq 1 ]] && printf 'no' || printf 'yes')
+  - remove temporary APT source after validation: $([[ "$use_apt_repo" -eq 1 ]] && printf 'yes' || printf 'not configured')
   - leave state for inspection: $([[ "$purge_state" -eq 1 ]] && printf 'no' || printf 'yes')
 
 Will not:
   - run if an existing Tracejutsu install is detected
   - enable the service for boot
+  - leave a temporary APT source configured
   - remove /var/lib/tracejutsu unless --purge-state is supplied
 EOF
 tracejutsu_print_host_fingerprint
@@ -374,7 +560,9 @@ trap cleanup EXIT INT TERM HUP
 tmp_dir="$(mktemp -d /tmp/tracejutsu-package-install.XXXXXX)"
 deb_out="$tmp_dir/deb"
 
-if [[ "$use_existing_deb" -eq 1 ]]; then
+if [[ "$use_apt_repo" -eq 1 ]]; then
+	configure_apt_source
+elif [[ "$use_existing_deb" -eq 1 ]]; then
 	verify_deb_checksum_if_present "$deb_path"
 else
 	scripts/build-deb.sh --version "$version" --out "$deb_out"
@@ -389,9 +577,25 @@ fi
 
 echo
 echo "===== installing package ====="
-sudo dpkg -i "$deb_path"
+if [[ "$use_apt_repo" -eq 1 ]]; then
+	if [[ -n "$version" ]]; then
+		sudo apt-get install -y "tracejutsu=${version#v}"
+	else
+		sudo apt-get install -y tracejutsu
+	fi
+else
+	sudo dpkg -i "$deb_path"
+fi
 installed_package=1
 sudo systemctl daemon-reload
+
+installed_package_version="$(dpkg-query -W -f='${Version}' tracejutsu)"
+if [[ -z "$version" ]]; then
+	version="$installed_package_version"
+elif [[ "$installed_package_version" != "$version" && "$installed_package_version" != "${version#v}" ]]; then
+	echo "installed package version is $installed_package_version, expected $version" >&2
+	exit 1
+fi
 
 echo
 echo "===== installed binary ====="
