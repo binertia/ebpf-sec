@@ -12,6 +12,7 @@ Writes and verifies a sorted SHA256SUMS manifest for release artifacts in DIR.
 The manifest includes:
   - tracejutsu-*.tar.gz
   - tracejutsu_*.deb
+  - tracejutsu-*.rpm
 
 By default the script regenerates DIR/SHA256SUMS and verifies it. With --sign,
 it also writes DIR/SHA256SUMS.asc as an armored detached GPG signature and
@@ -84,7 +85,7 @@ require_command() {
 
 artifact_paths() {
 	find "$out_dir" -maxdepth 1 -type f \
-		\( -name 'tracejutsu-*.tar.gz' -o -name 'tracejutsu_*.deb' \) \
+		\( -name 'tracejutsu-*.tar.gz' -o -name 'tracejutsu_*.deb' -o -name 'tracejutsu-*.rpm' \) \
 		-print | LC_ALL=C sort
 }
 

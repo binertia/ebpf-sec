@@ -8,8 +8,8 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/release-check.sh [--skip-vuln]
 
-Runs the non-root release gate used before publishing or packaging Runtime
-Guard. It does not run live eBPF smoke tests, systemd helpers, or any command
+Runs the non-root release gate used before publishing or packaging Tracejutsu.
+It does not run live eBPF smoke tests, systemd helpers, or any command
 that needs sudo.
 
 Options:
@@ -83,6 +83,29 @@ verify_deb_artifact() {
 	grep -F "ExecStart=/usr/bin/tracejutsu" "$extract_dir/lib/systemd/system/tracejutsu.service" >/dev/null
 }
 
+verify_rpm_artifact() {
+	local out_dir=$1
+	local version=$2
+	local packager=${3:-}
+	local name="tracejutsu-${version}-1.x86_64"
+	local package_query
+	run bash -c "cd \"\$1\" && sha256sum -c \"\$2.rpm.sha256\"" _ "$out_dir" "$name"
+	if command -v rpm >/dev/null 2>&1; then
+		package_query="$(rpm -qp --qf '%{NAME}\n%{VERSION}\n%{RELEASE}\n%{ARCH}\n%{PACKAGER}\n' "$out_dir/$name.rpm")"
+		printf '%s\n' "$package_query" | grep -Fx "tracejutsu" >/dev/null
+		printf '%s\n' "$package_query" | grep -Fx "$version" >/dev/null
+		printf '%s\n' "$package_query" | grep -Fx "1" >/dev/null
+		printf '%s\n' "$package_query" | grep -Fx "x86_64" >/dev/null
+		if [[ -n "$packager" ]]; then
+			printf '%s\n' "$package_query" | grep -Fx "$packager" >/dev/null
+		fi
+		rpm -qpl "$out_dir/$name.rpm" | grep -Fx "/usr/bin/tracejutsu" >/dev/null
+		rpm -qpl "$out_dir/$name.rpm" | grep -Fx "/lib/systemd/system/tracejutsu.service" >/dev/null
+	else
+		echo "RPM metadata verification skipped: rpm unavailable"
+	fi
+}
+
 require_command bash
 require_command git
 require_command go
@@ -105,6 +128,7 @@ run bash -n \
 	scripts/release-check.sh \
 	scripts/build-release.sh \
 	scripts/build-deb.sh \
+	scripts/build-rpm.sh \
 	scripts/release-manifest.sh \
 	scripts/package-install-smoke.sh \
 	scripts/container-workload.sh \
@@ -128,6 +152,14 @@ if command -v dpkg-deb >/dev/null 2>&1; then
 else
 	echo
 	echo "===== Debian package build skipped: dpkg-deb unavailable ====="
+fi
+if command -v rpmbuild >/dev/null 2>&1; then
+	check_packager="Tracejutsu Check <check@example.invalid>"
+	run scripts/build-rpm.sh --version "$check_version" --out "$release_dir" --packager "$check_packager"
+	verify_rpm_artifact "$release_dir" "$check_version" "$check_packager"
+else
+	echo
+	echo "===== RPM package build skipped: rpmbuild unavailable ====="
 fi
 run scripts/release-manifest.sh --dir "$release_dir"
 run scripts/release-manifest.sh --dir "$release_dir" --verify

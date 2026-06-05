@@ -106,6 +106,12 @@ To build a Debian package for the current Linux architecture:
 scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 ```
 
+To build an experimental RPM package when `rpmbuild` is available:
+
+```sh
+scripts/build-rpm.sh --version v0.1.0 --packager "Your Name <you@example.com>" --license "LicenseRef-Private"
+```
+
 Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata
 and archive/package timestamps are required.
 

@@ -23,10 +23,18 @@ scripts/build-release.sh --version v0.1.0
 scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 ```
 
+When `rpmbuild` is available, an experimental RPM can also be built:
+
+```sh
+scripts/build-rpm.sh --version v0.1.0 --packager "Your Name <you@example.com>" --license "LicenseRef-Private"
+```
+
 Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata
 and archive/package timestamps are required.
 Set `--maintainer` or `TRACEJUTSU_PACKAGE_MAINTAINER` before publishing a
 Debian package for other users.
+Set `--packager` or `TRACEJUTSU_PACKAGE_MAINTAINER` and a real `--license`
+value before publishing an RPM package for other users.
 
 Linux amd64 and native arm64 are supported for live eBPF collection. Build release
 binaries natively on the target architecture when possible. Cross-building an
@@ -80,8 +88,8 @@ persistent session on SSH hosts so a client disconnect does not interrupt the
 package cleanup path.
 
 Before publishing artifacts, generate a single checksum manifest for the built
-tarball and Debian package. Add `--sign` to write and verify an armored detached
-GPG signature:
+tarball, Debian package, and any RPM package. Add `--sign` to write and verify
+an armored detached GPG signature:
 
 ```sh
 scripts/release-manifest.sh --dir dist
