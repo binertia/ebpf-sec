@@ -141,10 +141,10 @@ MVP functionality.
 
 Before calling this distribution-grade, finish these tracks:
 
-- Preserve full fresh-host package lifecycle and stress logs for Debian
-  Bookworm, Ubuntu 22.04, and Ubuntu 24.04, including host fingerprint, release
-  gate, root smoke, systemd smoke/stress, and package smoke outputs. Use
-  `scripts/validation-bundle.sh` to package each host's evidence with checksums.
+- Keep the current Docker/containerd evidence bundle and use the summarized VPS
+  results already recorded here for private-beta release notes. Older Debian
+  Bookworm, Ubuntu 22.04, and Ubuntu 24.04 VPS full logs are useful but no
+  longer blocking.
 - Validate a stricter kernel/procfs environment if target deployments require
   capability fallback beyond the packaged narrow set. Docker/containerd host
   metadata capture is already validated on Debian 13 with
@@ -393,22 +393,23 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 
 ## Recommended Next Task
 
-1. Push or otherwise back up the latest signed commits.
-2. Run `scripts/build-release.sh --version v0.1.0` and
+1. Push or otherwise back up any latest signed commits after checking
+   `git status --short --branch`.
+2. Run the full local release gate with vulnerability lookup:
+
+   ```sh
+   scripts/release-check.sh
+   ```
+
+3. Run `scripts/build-release.sh --version v0.1.0` and
    `scripts/build-deb.sh --version v0.1.0` once on the release host, then
    inspect the generated artifacts and `runtime-guard version` output.
-3. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
+4. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
    review the dependency/license inventory.
-4. Generate `scripts/release-manifest.sh --dir dist --sign` and verify the
+5. Generate `scripts/release-manifest.sh --dir dist --sign` and verify the
    published `SHA256SUMS` plus `SHA256SUMS.asc` on a clean machine.
-5. Save the full Debian Bookworm, Ubuntu 22.04, and Ubuntu 24.04 VPS logs under
-   a local validation directory, bundle them with
-   `scripts/validation-bundle.sh`, and copy the final summaries into release
-   notes. Prioritize the fresh Ubuntu 22.04 busier pass because it already
-   covers smoke, stress, and package lifecycle with zero required drops.
-6. Bundle the Debian 13 Docker/containerd logs, including the stress summary,
-   container-workload output, and the stored-event sample showing non-empty
-   `container_id`.
+6. Keep `validation-artifacts/debian-13-docker-container-host.tar.gz` as the
+   container-host evidence bundle for release notes.
 7. Re-run package lifecycle smoke on any release target whose full log was not
    preserved after the journal timestamp compatibility fix.
 8. Start `.rpm` or broader package-format work only after evidence bundles are
