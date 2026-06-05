@@ -9,7 +9,7 @@
 
 ## 1. Project Vision
 
-Runtime Guard is a **local-first runtime security analyst using eBPF event compression and local LLM reasoning**. It observes a deliberately small set of high-value runtime behaviors, groups related activity into process-centric incidents, and produces concise explanations that an operator can review from a terminal. The product is designed to make runtime evidence understandable without turning every syscall into an alert.
+Tracejutsu is a **local-first runtime security analyst using eBPF event compression and local LLM reasoning**. It observes a deliberately small set of high-value runtime behaviors, groups related activity into process-centric incidents, and produces concise explanations that an operator can review from a terminal. The product is designed to make runtime evidence understandable without turning every syscall into an alert.
 
 The system keeps detection deterministic and local by default. eBPF provides efficient kernel-level visibility, a userspace pipeline normalizes and compresses events, and rules identify suspicious behavior chains before an LLM is involved. A local LLM receives a compact incident story only after the rule engine has created a score and selected the relevant evidence.
 
@@ -449,13 +449,13 @@ Start with readable CLI output. Introduce Bubble Tea only when interactive navig
 Initial commands:
 
 ```text
-runtime-guard run
-runtime-guard events
-runtime-guard incidents
-runtime-guard show <incident_id>
-runtime-guard llm <incident_id>
-runtime-guard rules
-runtime-guard config
+tracejutsu run
+tracejutsu events
+tracejutsu incidents
+tracejutsu show <incident_id>
+tracejutsu llm <incident_id>
+tracejutsu rules
+tracejutsu config
 ```
 
 Example terminal output:
@@ -490,16 +490,16 @@ Every phase should leave the repository runnable. Test commands assume the recom
 ### Phase 0: Repository Inspection and Docs
 
 - **Goal:** Inspect the existing project, select the implementation path, and document the architecture.
-- **Files likely changed:** `docs/RUNTIME_AI_GUARD_PLAN.md`
+- **Files likely changed:** `docs/TRACEJUTSU_PLAN.md`
 - **Acceptance criteria:** The plan covers MVP boundaries, contracts, phases, and safety constraints. Existing source conventions are understood.
-- **Test command:** `test -f docs/RUNTIME_AI_GUARD_PLAN.md`
+- **Test command:** `test -f docs/TRACEJUTSU_PLAN.md`
 
 ### Phase 1: Basic CLI Skeleton
 
 - **Goal:** Add a runnable CLI with command routing and help output.
-- **Files likely changed:** `go.mod`, `cmd/runtime-guard/main.go`, `internal/config/config.go`
-- **Acceptance criteria:** `runtime-guard --help` and placeholder commands run without root.
-- **Test command:** `go run ./cmd/runtime-guard --help`
+- **Files likely changed:** `go.mod`, `cmd/tracejutsu/main.go`, `internal/config/config.go`
+- **Acceptance criteria:** `tracejutsu --help` and placeholder commands run without root.
+- **Test command:** `go run ./cmd/tracejutsu --help`
 
 ### Phase 2: `execve` Collector
 
@@ -567,9 +567,9 @@ Every phase should leave the repository runnable. Test commands assume the recom
 ### Phase 11: Incident Report Output
 
 - **Goal:** Connect stored incidents and optional LLM reports to CLI rendering.
-- **Files likely changed:** `internal/report/report.go`, `internal/report/report_test.go`, `cmd/runtime-guard/main.go`
-- **Acceptance criteria:** `runtime-guard show <incident_id>` renders deterministic evidence and optional LLM commentary clearly.
-- **Test command:** `go test ./internal/report && go run ./cmd/runtime-guard show <fixture-id>`
+- **Files likely changed:** `internal/report/report.go`, `internal/report/report_test.go`, `cmd/tracejutsu/main.go`
+- **Acceptance criteria:** `tracejutsu show <incident_id>` renders deterministic evidence and optional LLM commentary clearly.
+- **Test command:** `go test ./internal/report && go run ./cmd/tracejutsu show <fixture-id>`
 
 ### Phase 12: Tests and Polish
 
@@ -582,7 +582,7 @@ Every phase should leave the repository runnable. Test commands assume the recom
 
 ```text
 cmd/
-  runtime-guard/
+  tracejutsu/
 internal/
   ebpf/
   events/
@@ -662,7 +662,7 @@ The MVP is done when:
 
 ## 20. Next Action After Writing This Document
 
-After creating `docs/RUNTIME_AI_GUARD_PLAN.md`:
+After creating `docs/TRACEJUTSU_PLAN.md`:
 
 1. Inspect the repository structure.
 2. Choose Go unless the existing repository is clearly Rust.

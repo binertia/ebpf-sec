@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 const (

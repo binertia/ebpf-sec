@@ -3,7 +3,7 @@
 Run the non-root fake-event pipeline from the repository root:
 
 ```sh
-go run ./cmd/runtime-guard demo
+go run ./cmd/tracejutsu demo
 ```
 
 The demo loads `testdata/events/web-download-execute-connect.json`, evaluates

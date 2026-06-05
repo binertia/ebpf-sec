@@ -14,21 +14,21 @@ import (
 	"syscall"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/config"
-	"runtime-guard/internal/detect"
-	sensor "runtime-guard/internal/ebpf"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/persistqueue"
-	"runtime-guard/internal/pipeline"
-	"runtime-guard/internal/report"
-	"runtime-guard/internal/store"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/config"
+	"tracejutsu/internal/detect"
+	sensor "tracejutsu/internal/ebpf"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/persistqueue"
+	"tracejutsu/internal/pipeline"
+	"tracejutsu/internal/report"
+	"tracejutsu/internal/store"
 )
 
 const (
 	defaultFixture         = "testdata/events/web-download-execute-connect.json"
-	defaultDB              = "runtime-guard.db"
+	defaultDB              = "tracejutsu.db"
 	defaultStatsInterval   = 10 * time.Second
 	defaultLiveEventBuffer = 8192
 )
@@ -95,9 +95,9 @@ func run(args []string, out io.Writer) error {
 
 func runVersion(args []string, out io.Writer) error {
 	if len(args) != 0 {
-		return errors.New("usage: runtime-guard version")
+		return errors.New("usage: tracejutsu version")
 	}
-	fmt.Fprintf(out, "runtime-guard %s\n", report.TerminalText(buildVersion))
+	fmt.Fprintf(out, "tracejutsu %s\n", report.TerminalText(buildVersion))
 	fmt.Fprintf(out, "commit: %s\n", report.TerminalText(buildCommit))
 	fmt.Fprintf(out, "build_date: %s\n", report.TerminalText(buildDate))
 	return nil
@@ -108,7 +108,7 @@ func runDemo(args []string, out io.Writer) error {
 	flags.SetOutput(io.Discard)
 	databasePath := flags.String("db", "", "persist results to a SQLite database")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) > 1 {
-		return errors.New("usage: runtime-guard demo [--db path] [fixture.json]")
+		return errors.New("usage: tracejutsu demo [--db path] [fixture.json]")
 	}
 
 	path := defaultFixture
@@ -181,7 +181,7 @@ func runLive(args []string, out io.Writer) (err error) {
 	fileWriteMinBytes := flags.Int64("file-write-min-bytes", 0, "minimum successful bytes for file_write events; 0 captures all completed writes")
 	quietEvents := flags.Bool("quiet-events", false, "suppress per-event JSON output")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
-		return errors.New("usage: runtime-guard run [--db path] [--flush-after duration] [--stats-interval duration] [--event-buffer count] [--persist-buffer count] [--persist-batch-size count] [--ring-buffer-size bytes] [--collectors list] [--file-write-min-bytes bytes] [--quiet-events]")
+		return errors.New("usage: tracejutsu run [--db path] [--flush-after duration] [--stats-interval duration] [--event-buffer count] [--persist-buffer count] [--persist-batch-size count] [--ring-buffer-size bytes] [--collectors list] [--file-write-min-bytes bytes] [--quiet-events]")
 	}
 	if *eventBuffer <= 0 {
 		return errors.New("event buffer size must be positive")
@@ -279,7 +279,7 @@ func runLive(args []string, out io.Writer) (err error) {
 	flushTicker := time.NewTicker(time.Second)
 	defer flushTicker.Stop()
 
-	fmt.Fprintf(out, "runtime-guard: collecting %s events; quiet_events=%t stats_interval=%s event_buffer=%d persist_buffer=%d persist_batch_size=%d ring_buffer_size=%d file_write_min_bytes=%d file_write_ignore_pid=%d; press Ctrl-C to stop\n",
+	fmt.Fprintf(out, "tracejutsu: collecting %s events; quiet_events=%t stats_interval=%s event_buffer=%d persist_buffer=%d persist_batch_size=%d ring_buffer_size=%d file_write_min_bytes=%d file_write_ignore_pid=%d; press Ctrl-C to stop\n",
 		strings.Join(enabledCollectors, ","), *quietEvents, statsIntervalLabel(*statsInterval), *eventBuffer, *persistBuffer, *persistBatchSize, *ringBufferSize, *fileWriteMinBytes, os.Getpid())
 	encoder := json.NewEncoder(out)
 	for {
@@ -454,7 +454,7 @@ func runEvents(args []string, out io.Writer) error {
 	databasePath := flags.String("db", defaultDB, "SQLite database path")
 	limit := flags.Int("limit", 50, "maximum events to print")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
-		return errors.New("usage: runtime-guard events [--db path] [--limit count]")
+		return errors.New("usage: tracejutsu events [--db path] [--limit count]")
 	}
 
 	database, err := openExistingSQLite(*databasePath)
@@ -483,7 +483,7 @@ func runEventSummary(args []string, out io.Writer) error {
 	eventType := flags.String("type", "", "event type to summarize, for example file_write")
 	limit := flags.Int("limit", 10, "maximum rows per summary section")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
-		return errors.New("usage: runtime-guard event-summary [--db path] [--type event_type] [--limit count]")
+		return errors.New("usage: tracejutsu event-summary [--db path] [--type event_type] [--limit count]")
 	}
 
 	database, err := openExistingSQLite(*databasePath)
@@ -536,7 +536,7 @@ func runDBStats(args []string, out io.Writer) error {
 	flags.SetOutput(io.Discard)
 	databasePath := flags.String("db", defaultDB, "SQLite database path")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
-		return errors.New("usage: runtime-guard db-stats [--db path]")
+		return errors.New("usage: tracejutsu db-stats [--db path]")
 	}
 	if *databasePath == ":memory:" {
 		return errors.New("db-stats requires a filesystem SQLite database")
@@ -613,7 +613,7 @@ func runIncidents(args []string, out io.Writer) error {
 	databasePath := flags.String("db", defaultDB, "SQLite database path")
 	limit := flags.Int("limit", 50, "maximum incidents to print")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 0 {
-		return errors.New("usage: runtime-guard incidents [--db path] [--limit count]")
+		return errors.New("usage: tracejutsu incidents [--db path] [--limit count]")
 	}
 
 	database, err := openExistingSQLite(*databasePath)
@@ -642,7 +642,7 @@ func runShow(args []string, out io.Writer) error {
 	flags.SetOutput(io.Discard)
 	databasePath := flags.String("db", defaultDB, "SQLite database path")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 1 {
-		return errors.New("usage: runtime-guard show [--db path] <incident_id>")
+		return errors.New("usage: tracejutsu show [--db path] <incident_id>")
 	}
 
 	database, err := openExistingSQLite(*databasePath)
@@ -686,7 +686,7 @@ func runLLM(args []string, out io.Writer) error {
 	remoteEndpointOptIn := flags.Bool("allow-remote-endpoint", defaults.LLM.RemoteEndpointOptIn, "allow a non-loopback LLM endpoint")
 	preserveRawResponse := flags.Bool("preserve-raw-response", defaults.LLM.PreserveRawResponse, "store raw LLM output for debugging")
 	if err := flags.Parse(args); err != nil || len(flags.Args()) != 1 {
-		return errors.New("usage: runtime-guard llm [--db path] [--endpoint url] [--model name] [--timeout duration] [--allow-remote-endpoint] [--preserve-raw-response] <incident_id>")
+		return errors.New("usage: tracejutsu llm [--db path] [--endpoint url] [--model name] [--timeout duration] [--allow-remote-endpoint] [--preserve-raw-response] <incident_id>")
 	}
 
 	database, err := openExistingSQLite(*databasePath)
@@ -705,7 +705,7 @@ func runLLM(args []string, out io.Writer) error {
 		Timeout:             *timeout,
 		RemoteEndpointOptIn: *remoteEndpointOptIn,
 		PreserveRawResponse: *preserveRawResponse,
-		APIKey:              os.Getenv("RUNTIME_GUARD_LLM_API_KEY"),
+		APIKey:              os.Getenv("TRACEJUTSU_LLM_API_KEY"),
 	})
 	if err != nil {
 		return err
@@ -727,20 +727,20 @@ func runLLM(args []string, out io.Writer) error {
 }
 
 func writeUsage(out io.Writer) {
-	fmt.Fprintln(out, `runtime-guard: local-first runtime security analyst
+	fmt.Fprintln(out, `tracejutsu: local-first runtime security analyst
 
 Usage:
-  runtime-guard demo [--db path] [fixture.json]       Run the fake-event incident pipeline
-  runtime-guard run [--db path] [--flush-after time] [--stats-interval time] [--event-buffer count] [--persist-buffer count] [--persist-batch-size count] [--ring-buffer-size bytes] [--collectors list] [--file-write-min-bytes bytes] [--quiet-events]
+  tracejutsu demo [--db path] [fixture.json]       Run the fake-event incident pipeline
+  tracejutsu run [--db path] [--flush-after time] [--stats-interval time] [--event-buffer count] [--persist-buffer count] [--persist-batch-size count] [--ring-buffer-size bytes] [--collectors list] [--file-write-min-bytes bytes] [--quiet-events]
                                                        Stream live runtime events and detect incidents (Linux amd64/arm64, root)
-  runtime-guard events [--db path] [--limit count]    List stored normalized events
-  runtime-guard event-summary [--db path] [--type event_type] [--limit count]
+  tracejutsu events [--db path] [--limit count]    List stored normalized events
+  tracejutsu event-summary [--db path] [--type event_type] [--limit count]
                                                        Summarize stored event volume by process and file path
-  runtime-guard db-stats [--db path]                  Show SQLite table counts and file sizes
-  runtime-guard incidents [--db path] [--limit count] List stored incidents
-  runtime-guard show [--db path] <incident_id>        Show a stored incident
-  runtime-guard llm [--db path] <incident_id>         Analyze a stored incident with a local LLM
-  runtime-guard rules                List planned deterministic rules
-  runtime-guard config               Print local-first default config
-  runtime-guard version              Print build version metadata`)
+  tracejutsu db-stats [--db path]                  Show SQLite table counts and file sizes
+  tracejutsu incidents [--db path] [--limit count] List stored incidents
+  tracejutsu show [--db path] <incident_id>        Show a stored incident
+  tracejutsu llm [--db path] <incident_id>         Analyze a stored incident with a local LLM
+  tracejutsu rules                List planned deterministic rules
+  tracejutsu config               Print local-first default config
+  tracejutsu version              Print build version metadata`)
 }

@@ -1,6 +1,6 @@
 package detect
 
-import "runtime-guard/internal/events"
+import "tracejutsu/internal/events"
 
 type Signal struct {
 	RuleID      string   `json:"rule_id"`

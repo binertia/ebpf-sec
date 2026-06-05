@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/llm"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/llm"
 )
 
 type LLMReport struct {

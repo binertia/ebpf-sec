@@ -1,12 +1,12 @@
-# Runtime Guard
+# Tracejutsu
 
-Runtime Guard is a local-first runtime security analyst using eBPF event
+Tracejutsu is a local-first runtime security analyst using eBPF event
 compression and local LLM reasoning.
 
 The current skeleton runs without root and exercises a fake-event pipeline:
 
 ```sh
-go run ./cmd/runtime-guard demo
+go run ./cmd/tracejutsu demo
 go test ./...
 ```
 
@@ -15,7 +15,7 @@ IPv4/IPv6 `connect`, path-backed file write, and `chmod` events as JSON. It uses
 tracepoints and requires root or equivalent eBPF capabilities:
 
 ```sh
-sudo go run ./cmd/runtime-guard run
+sudo go run ./cmd/tracejutsu run
 sudo go test -tags=ebpf_smoke ./internal/ebpf -run 'Test(Execve|Connect|FileWrite|Chmod)CollectorSmoke'
 ```
 
@@ -32,13 +32,13 @@ an experiment in [`docs/ARM_TEST.md`](docs/ARM_TEST.md).
 Persist the fake pipeline to a local SQLite database and inspect the result:
 
 ```sh
-mkdir -p "$HOME/.local/state/runtime-guard"
-chmod 700 "$HOME/.local/state/runtime-guard"
-DB="$HOME/.local/state/runtime-guard/runtime-guard.db"
-go run ./cmd/runtime-guard demo --db "$DB"
-go run ./cmd/runtime-guard events --db "$DB"
-go run ./cmd/runtime-guard incidents --db "$DB"
-go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
+mkdir -p "$HOME/.local/state/tracejutsu"
+chmod 700 "$HOME/.local/state/tracejutsu"
+DB="$HOME/.local/state/tracejutsu/tracejutsu.db"
+go run ./cmd/tracejutsu demo --db "$DB"
+go run ./cmd/tracejutsu events --db "$DB"
+go run ./cmd/tracejutsu incidents --db "$DB"
+go run ./cmd/tracejutsu show --db "$DB" inc-evt-001
 ```
 
 SQLite uses WAL mode. New database files are created with `0600` permissions;
@@ -64,7 +64,7 @@ Analyze a stored incident with a local `llama-server`-compatible HTTP endpoint:
 
 ```sh
 llama-server --model /path/to/model.gguf --port 8080
-go run ./cmd/runtime-guard llm --db "$DB" inc-evt-001
+go run ./cmd/tracejutsu llm --db "$DB" inc-evt-001
 ```
 
 The LLM receives compressed incident JSON only. The client accepts loopback
@@ -74,9 +74,9 @@ separately from deterministic incident scores. Override the timeout with
 `--timeout`. Use `--allow-remote-endpoint` only for an explicitly configured
 remote service. Raw LLM output is discarded unless `--preserve-raw-response`
 is set. If the local server requires an API key, set
-`RUNTIME_GUARD_LLM_API_KEY`.
+`TRACEJUTSU_LLM_API_KEY`.
 
-See [`docs/RUNTIME_AI_GUARD_PLAN.md`](docs/RUNTIME_AI_GUARD_PLAN.md) for the
+See [`docs/TRACEJUTSU_PLAN.md`](docs/TRACEJUTSU_PLAN.md) for the
 architecture and phased implementation plan. See
 [`docs/HANDOFF.md`](docs/HANDOFF.md) for the current implementation status,
 known limitations, validation commands, and recommended next task. See

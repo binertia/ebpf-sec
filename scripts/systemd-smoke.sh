@@ -5,9 +5,9 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/systemd-smoke.sh [--capabilities "CAP_BPF CAP_PERFMON ..."] [--yes]
 
-Builds a temporary runtime-guard binary and runs it under a transient systemd
+Builds a temporary tracejutsu binary and runs it under a transient systemd
 unit using the packaged service sandbox settings. This does not install,
-replace, enable, or stop the real runtime-guard.service.
+replace, enable, or stop the real tracejutsu.service.
 
 Options:
   --capabilities LIST  Space-separated CapabilityBoundingSet value to test.
@@ -77,10 +77,10 @@ require_command mktemp
 require_command tee
 validate_capabilities "$capabilities"
 
-lock_file=/tmp/runtime-guard-systemd-helper.lock
+lock_file=/tmp/tracejutsu-systemd-helper.lock
 exec 9>"$lock_file"
 if ! flock -n 9; then
-	echo "another Runtime Guard systemd smoke/stress helper is already running" >&2
+	echo "another Tracejutsu systemd smoke/stress helper is already running" >&2
 	echo "wait for it to finish before starting a new helper run" >&2
 	exit 1
 fi
@@ -90,17 +90,17 @@ cd "$repo_root"
 source "$repo_root/scripts/systemd-helper-lib.sh"
 
 run_id="$(date +%Y%m%d%H%M%S)-$$"
-unit="runtime-guard-smoke-$run_id"
+unit="tracejutsu-smoke-$run_id"
 service_unit="$unit.service"
 state_name="$unit"
 state_dir="/var/lib/$state_name"
-repo_binary="$repo_root/bin/runtime-guard-smoke-$run_id"
-repo_runner_script="$repo_root/bin/runtime-guard-smoke-runner-$run_id.sh"
-state_binary="$state_dir/runtime-guard-smoke"
-state_runner_script="$state_dir/runtime-guard-smoke-runner.sh"
+repo_binary="$repo_root/bin/tracejutsu-smoke-$run_id"
+repo_runner_script="$repo_root/bin/tracejutsu-smoke-runner-$run_id.sh"
+state_binary="$state_dir/tracejutsu-smoke"
+state_runner_script="$state_dir/tracejutsu-smoke-runner.sh"
 
 cat <<EOF
-Runtime Guard systemd smoke test
+Tracejutsu systemd smoke test
 
 Will:
   - build: $repo_binary
@@ -110,14 +110,14 @@ Will:
   - start transient unit: $service_unit
   - capabilities: $capabilities
   - write only inside service state: $state_dir
-  - leave the real runtime-guard.service untouched
+  - leave the real tracejutsu.service untouched
 
 Will not:
-  - install or replace packaging/systemd/runtime-guard.service
+  - install or replace packaging/systemd/tracejutsu.service
   - enable a boot service
   - write outside the repo build path and the dedicated service state directory
 EOF
-runtime_guard_print_host_fingerprint
+tracejutsu_print_host_fingerprint
 
 if [[ "$assume_yes" -ne 1 ]]; then
 	if [[ ! -t 0 ]]; then
@@ -135,12 +135,12 @@ if [[ "$assume_yes" -ne 1 ]]; then
 	esac
 fi
 
-runtime_guard_require_sudo_access
+tracejutsu_require_sudo_access
 
 mkdir -p "$repo_root/bin"
-GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}" \
-GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}" \
-	go build -trimpath -o "$repo_binary" ./cmd/runtime-guard
+GOCACHE="${GOCACHE:-/tmp/tracejutsu-gocache}" \
+GOMODCACHE="${GOMODCACHE:-/tmp/tracejutsu-gomodcache}" \
+	go build -trimpath -o "$repo_binary" ./cmd/tracejutsu
 
 cat >"$repo_runner_script" <<'EOF'
 #!/bin/sh
@@ -148,7 +148,7 @@ set -eu
 guard_bin=$1
 state_name=$2
 state_dir="/var/lib/$state_name"
-db="$state_dir/runtime-guard.db"
+db="$state_dir/tracejutsu.db"
 
 "$guard_bin" run --db "$db" --flush-after 2s --stats-interval 3s --event-buffer 16384 --persist-buffer 16384 --persist-batch-size 512 --ring-buffer-size 8388608 --quiet-events &
 guard=$!
@@ -168,7 +168,7 @@ if ! kill -0 "$guard" 2>/dev/null; then
 fi
 
 /bin/true || true
-printf "runtime-guard smoke\n" > "$state_dir/smoke-file"
+printf "tracejutsu smoke\n" > "$state_dir/smoke-file"
 chmod +x "$state_dir/smoke-file"
 
 if command -v bash >/dev/null 2>&1; then
@@ -228,7 +228,7 @@ systemd_args=(
 	"$state_runner_script" "$state_binary" "$state_name"
 )
 
-run_output_file="$(mktemp -t runtime-guard-systemd-run.XXXXXX)"
+run_output_file="$(mktemp -t tracejutsu-systemd-run.XXXXXX)"
 set +e
 sudo systemd-run "${systemd_args[@]}" 2>&1 | tee "$run_output_file"
 run_status=${PIPESTATUS[0]}
@@ -252,10 +252,10 @@ echo "===== journalctl -u $service_unit ====="
 journal_output="$(sudo journalctl -u "$service_unit" -n 160 --no-pager 2>&1)" || journal_status=$?
 printf '%s\n' "$journal_output"
 
-runtime_guard_print_validation_summary "$run_status" "$run_output" "$journal_output"
-final_stats="$(runtime_guard_final_runtime_stats "$journal_output")"
+tracejutsu_print_validation_summary "$run_status" "$run_output" "$journal_output"
+final_stats="$(tracejutsu_final_runtime_stats "$journal_output")"
 set +e
-runtime_guard_validation_exit_status "$run_status" "$final_stats"
+tracejutsu_validation_exit_status "$run_status" "$final_stats"
 validation_status=$?
 set -e
 

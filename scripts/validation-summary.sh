@@ -5,7 +5,7 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/validation-summary.sh LOGFILE [...]
 
-Summarizes saved Runtime Guard smoke/stress helper output. The script accepts
+Summarizes saved Tracejutsu smoke/stress helper output. The script accepts
 logs produced by the current helpers and older logs that only contain raw
 journal output. It exits nonzero if any log has a failed helper result, missing
 runtime stats, or nonzero required drop counters.

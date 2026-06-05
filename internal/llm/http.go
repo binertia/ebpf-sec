@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"runtime-guard/internal/compress"
+	"tracejutsu/internal/compress"
 )
 
 const (

@@ -52,21 +52,21 @@ run() {
 verify_tar_artifact() {
 	local out_dir=$1
 	local version=$2
-	local name="runtime-guard-${version}-linux-amd64"
+	local name="tracejutsu-${version}-linux-amd64"
 	local extract_dir="$artifact_check_dir/tar-extract"
 	run bash -c "cd \"\$1\" && sha256sum -c \"\$2.tar.gz.sha256\" && sha256sum -c SHA256SUMS" _ "$out_dir" "$name"
 	mkdir -p "$extract_dir"
 	tar -C "$extract_dir" -xzf "$out_dir/$name.tar.gz"
-	run "$extract_dir/$name/runtime-guard" version
-	"$extract_dir/$name/runtime-guard" version | grep -F "runtime-guard $version" >/dev/null
-	grep -F "ExecStart=/usr/local/bin/runtime-guard" "$extract_dir/$name/packaging/systemd/runtime-guard.service" >/dev/null
+	run "$extract_dir/$name/tracejutsu" version
+	"$extract_dir/$name/tracejutsu" version | grep -F "tracejutsu $version" >/dev/null
+	grep -F "ExecStart=/usr/local/bin/tracejutsu" "$extract_dir/$name/packaging/systemd/tracejutsu.service" >/dev/null
 }
 
 verify_deb_artifact() {
 	local out_dir=$1
 	local version=$2
 	local maintainer=${3:-}
-	local name="runtime-guard_${version}_amd64"
+	local name="tracejutsu_${version}_amd64"
 	local extract_dir="$artifact_check_dir/deb-extract"
 	local package_info
 	run bash -c "cd \"\$1\" && sha256sum -c \"\$2.deb.sha256\"" _ "$out_dir" "$name"
@@ -75,12 +75,12 @@ verify_deb_artifact() {
 	if [[ -n "$maintainer" ]]; then
 		printf '%s\n' "$package_info" | grep -F "Maintainer: $maintainer" >/dev/null
 	fi
-	dpkg-deb --contents "$out_dir/$name.deb" | grep -F "./usr/bin/runtime-guard" >/dev/null
+	dpkg-deb --contents "$out_dir/$name.deb" | grep -F "./usr/bin/tracejutsu" >/dev/null
 	mkdir -p "$extract_dir"
 	dpkg-deb -x "$out_dir/$name.deb" "$extract_dir"
-	run "$extract_dir/usr/bin/runtime-guard" version
-	"$extract_dir/usr/bin/runtime-guard" version | grep -F "runtime-guard $version" >/dev/null
-	grep -F "ExecStart=/usr/bin/runtime-guard" "$extract_dir/lib/systemd/system/runtime-guard.service" >/dev/null
+	run "$extract_dir/usr/bin/tracejutsu" version
+	"$extract_dir/usr/bin/tracejutsu" version | grep -F "tracejutsu $version" >/dev/null
+	grep -F "ExecStart=/usr/bin/tracejutsu" "$extract_dir/lib/systemd/system/tracejutsu.service" >/dev/null
 }
 
 require_command bash
@@ -91,8 +91,8 @@ require_command mktemp
 require_command sha256sum
 require_command tar
 
-export GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}"
-export GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}"
+export GOCACHE="${GOCACHE:-/tmp/tracejutsu-gocache}"
+export GOMODCACHE="${GOMODCACHE:-/tmp/tracejutsu-gomodcache}"
 artifact_check_dir="$(mktemp -d)"
 trap 'rm -rf "$artifact_check_dir"' EXIT
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1780531200}"
@@ -122,7 +122,7 @@ check_version=0.0.0-check
 run scripts/build-release.sh --version "$check_version" --out "$release_dir"
 verify_tar_artifact "$release_dir" "$check_version"
 if command -v dpkg-deb >/dev/null 2>&1; then
-	check_maintainer="Runtime Guard Check <check@example.invalid>"
+	check_maintainer="Tracejutsu Check <check@example.invalid>"
 	run scripts/build-deb.sh --version "$check_version" --out "$release_dir" --maintainer "$check_maintainer"
 	verify_deb_artifact "$release_dir" "$check_version" "$check_maintainer"
 else
@@ -143,7 +143,7 @@ else
 	echo "===== govulncheck skipped ====="
 fi
 
-run scripts/dependency-review.sh --out /tmp/runtime-guard-dependency-review.md
+run scripts/dependency-review.sh --out /tmp/tracejutsu-dependency-review.md
 
 echo
 echo "release check passed"

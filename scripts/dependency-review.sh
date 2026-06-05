@@ -76,7 +76,7 @@ emit_report() {
 	local module_count=$4
 
 	{
-		echo "# Runtime Guard Dependency Review"
+		echo "# Tracejutsu Dependency Review"
 		echo
 		echo "Generated: $generated_at"
 		echo
@@ -95,8 +95,8 @@ require_command go
 require_command paste
 require_command sort
 
-export GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}"
-export GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}"
+export GOCACHE="${GOCACHE:-/tmp/tracejutsu-gocache}"
+export GOMODCACHE="${GOMODCACHE:-/tmp/tracejutsu-gomodcache}"
 
 go mod download all
 

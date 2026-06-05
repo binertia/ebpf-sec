@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/detect"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/store"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/detect"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/store"
 )
 
 func TestSQLitePersistsEventsAndIncidentLinks(t *testing.T) {
@@ -204,7 +204,7 @@ func TestSQLiteRedactsPersistedEventsAndIncidents(t *testing.T) {
 }
 
 func TestOpenSQLiteCreatesPrivateDatabaseFile(t *testing.T) {
-	path := filepath.Join(privateTempDir(t), "runtime-guard.db")
+	path := filepath.Join(privateTempDir(t), "tracejutsu.db")
 	database, err := store.OpenSQLite(path)
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +224,7 @@ func TestOpenSQLiteCreatesPrivateDatabaseFile(t *testing.T) {
 }
 
 func TestOpenSQLiteRejectsPermissiveExistingDatabaseFile(t *testing.T) {
-	path := filepath.Join(privateTempDir(t), "runtime-guard.db")
+	path := filepath.Join(privateTempDir(t), "tracejutsu.db")
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestOpenSQLiteRejectsWritableParentDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.OpenSQLite(filepath.Join(parent, "runtime-guard.db")); err == nil {
+	if _, err := store.OpenSQLite(filepath.Join(parent, "tracejutsu.db")); err == nil {
 		t.Fatal("expected writable parent directory rejection")
 	}
 }
@@ -257,7 +257,7 @@ func TestOpenSQLiteRejectsSymlinkDatabasePath(t *testing.T) {
 	if err := os.WriteFile(target, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(directory, "runtime-guard.db")
+	path := filepath.Join(directory, "tracejutsu.db")
 	if err := os.Symlink(target, path); err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +268,7 @@ func TestOpenSQLiteRejectsSymlinkDatabasePath(t *testing.T) {
 }
 
 func TestOpenSQLiteRejectsPermissiveExistingSidecar(t *testing.T) {
-	path := filepath.Join(privateTempDir(t), "runtime-guard.db")
+	path := filepath.Join(privateTempDir(t), "tracejutsu.db")
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestOpenSQLiteRejectsPermissiveExistingSidecar(t *testing.T) {
 
 func TestOpenSQLiteRejectsSymlinkSidecar(t *testing.T) {
 	directory := privateTempDir(t)
-	path := filepath.Join(directory, "runtime-guard.db")
+	path := filepath.Join(directory, "tracejutsu.db")
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +305,7 @@ func TestOpenSQLiteRejectsSymlinkSidecar(t *testing.T) {
 }
 
 func TestOpenSQLiteRejectsOrphanedSidecar(t *testing.T) {
-	path := filepath.Join(privateTempDir(t), "runtime-guard.db")
+	path := filepath.Join(privateTempDir(t), "tracejutsu.db")
 	if err := os.WriteFile(path+"-wal", nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestOpenSQLiteRejectsOrphanedSidecar(t *testing.T) {
 }
 
 func TestOpenSQLiteUpgradesLegacyIncidentSchema(t *testing.T) {
-	path := filepath.Join(privateTempDir(t), "runtime-guard.db")
+	path := filepath.Join(privateTempDir(t), "tracejutsu.db")
 	database, err := sql.Open("sqlite3", path)
 	if err != nil {
 		t.Fatal(err)
@@ -467,7 +467,7 @@ func TestSQLitePersistsLLMReportAndMarksIncidentComplete(t *testing.T) {
 
 func openTestSQLite(t *testing.T) *store.SQLite {
 	t.Helper()
-	database, err := store.OpenSQLite(filepath.Join(privateTempDir(t), "runtime-guard.db"))
+	database, err := store.OpenSQLite(filepath.Join(privateTempDir(t), "tracejutsu.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

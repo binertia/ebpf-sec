@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 type ExecveCollector struct{}

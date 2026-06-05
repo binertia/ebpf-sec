@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/redact"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/redact"
 )
 
 func (store *SQLite) SaveLLMReport(ctx context.Context, report LLMReport) error {

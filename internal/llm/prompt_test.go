@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/llm"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/llm"
 )
 
 func TestBuildPromptRedactsSensitiveIncidentFields(t *testing.T) {

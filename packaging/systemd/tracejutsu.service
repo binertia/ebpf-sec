@@ -1,10 +1,10 @@
 [Unit]
-Description=Runtime Guard local eBPF runtime security analyst
+Description=Tracejutsu local eBPF runtime security analyst
 After=local-fs.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/runtime-guard run --db /var/lib/runtime-guard/runtime-guard.db --flush-after 15s --stats-interval 1m --event-buffer 16384 --persist-buffer 16384 --persist-batch-size 512 --ring-buffer-size 8388608 --quiet-events
+ExecStart=/usr/local/bin/tracejutsu run --db /var/lib/tracejutsu/tracejutsu.db --flush-after 15s --stats-interval 1m --event-buffer 16384 --persist-buffer 16384 --persist-batch-size 512 --ring-buffer-size 8388608 --quiet-events
 Restart=on-failure
 RestartSec=2s
 KillSignal=SIGTERM
@@ -15,12 +15,12 @@ TimeoutStopSec=20s
 User=root
 Group=root
 UMask=0077
-StateDirectory=runtime-guard
+StateDirectory=tracejutsu
 StateDirectoryMode=0700
 
-# Keep the service writable only where Runtime Guard stores its local SQLite DB.
+# Keep the service writable only where Tracejutsu stores its local SQLite DB.
 ProtectSystem=strict
-ReadWritePaths=/var/lib/runtime-guard
+ReadWritePaths=/var/lib/tracejutsu
 ProtectHome=read-only
 PrivateDevices=yes
 PrivateTmp=yes

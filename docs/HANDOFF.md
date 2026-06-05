@@ -1,10 +1,10 @@
-# Runtime Guard Handoff
+# Tracejutsu Handoff
 
 Updated: 2026-06-05
 
 ## Current State
 
-Runtime Guard is **100% complete for the planned MVP**. The fake-event
+Tracejutsu is **100% complete for the planned MVP**. The fake-event
 pipeline is runnable without root, deterministic detection and compression are
 implemented, SQLite persistence is hardened, Linux amd64/native-arm64 eBPF
 collectors are present, the live event path uses a bounded async persistence
@@ -16,7 +16,7 @@ The async event and incident persistence queues apply bounded save timeouts and
 transition to a closed/drop state on the first persistence error.
 Basic packaging assets are present for local service deployment: an install
 guide and a conservative systemd unit that stores data under
-`/var/lib/runtime-guard`, suppresses per-event JSON with `--quiet-events`, and
+`/var/lib/tracejutsu`, suppresses per-event JSON with `--quiet-events`, and
 prints periodic stats every minute.
 The service unit was further hardened with device isolation, native syscall ABI
 restriction, namespace creation blocking, hostname protection,
@@ -25,17 +25,17 @@ writable-executable memory denial, and IPC cleanup.
 Root-only eBPF smoke tests passed on a capable Linux amd64 host on 2026-06-03,
 including after connect, file-write, and chmod syscall-exit correlation was
 added. A follow-up root-only eBPF smoke pass was reported on 2026-06-04 after
-runtime-guard self file writes were excluded. IPv4 and IPv6 connect smoke
+tracejutsu self file writes were excluded. IPv4 and IPv6 connect smoke
 subtests also passed after IPv6 sockaddr capture and connect syscall-exit
 outcome handling were added.
 An actual local `llama-server` report also completed successfully after JSON
 Schema output enforcement was added: the response decoded, persisted, and
-rendered through `runtime-guard show`.
+rendered through `tracejutsu show`.
 A transient systemd sandbox smoke test passed on Debian on 2026-06-03 after the
 additional sandbox directives were added. After async SQLite batch persistence
 was added, a repeat short run processed about 51k normalized events with zero
 ring-buffer drops, zero syscall-correlation drops, and zero persistence drops.
-After runtime-guard self file writes were excluded at the eBPF entry point, a
+After tracejutsu self file writes were excluded at the eBPF entry point, a
 10-minute plugged-in idle all-collector stress run on Debian processed 8,742
 normalized events with zero ring-buffer, syscall-correlation, and persistence
 drops. That run consumed 5.747s CPU and peaked at 90.1M memory.
@@ -163,7 +163,7 @@ Before calling this distribution-grade, finish these tracks:
 - Review `scripts/dependency-review.sh --out dist/dependency-review.md` output
   before publishing packages for other users.
 - Set a real Debian package maintainer with `scripts/build-deb.sh --maintainer`
-  or `RUNTIME_GUARD_PACKAGE_MAINTAINER` before publishing a `.deb`.
+  or `TRACEJUTSU_PACKAGE_MAINTAINER` before publishing a `.deb`.
 
 ## Implemented MVP Surface
 
@@ -243,13 +243,13 @@ Implemented deterministic rules:
   incident-persistence counters every 10 seconds by default and at shutdown. It
   also reports per-collector ring-buffer and syscall-correlation drop
   breakdowns for tuning.
-- `runtime-guard event-summary --type file_write` summarizes stored event
+- `tracejutsu event-summary --type file_write` summarizes stored event
   volume by process/executable and file path so stress databases can identify
   high-volume file-write sources without manual SQLite queries.
-- `runtime-guard db-stats` reports SQLite table counts, page/freelist stats,
+- `tracejutsu db-stats` reports SQLite table counts, page/freelist stats,
   journal mode, and database/WAL/SHM file sizes for operations and retention
   planning.
-- `runtime-guard run --event-buffer`, `--persist-buffer`,
+- `tracejutsu run --event-buffer`, `--persist-buffer`,
   `--persist-batch-size`, and `--ring-buffer-size` tune burst capacity.
   `--collectors` narrows live collection to a comma-separated subset of
   `execve`, `connect`, `file_write`, and `chmod` for stress isolation or
@@ -258,12 +258,12 @@ Implemented deterministic rules:
   service uses 16384 event and persistence queue slots, 512 events per
   persistence transaction, 8 MiB per collector ring buffer, all collectors, and
   no file-write byte floor by default.
-- Live runs exclude the runtime-guard process PID from file-write capture at
+- Live runs exclude the tracejutsu process PID from file-write capture at
   the eBPF entry point. This prevents SQLite persistence writes from feeding
   back into the file-write collector and saturating the ring buffer.
-- `runtime-guard run --quiet-events` suppresses per-event JSON for service-style
+- `tracejutsu run --quiet-events` suppresses per-event JSON for service-style
   operation while still printing incidents and periodic stats.
-- `runtime-guard run --stats-interval` controls periodic runtime stats; `0`
+- `tracejutsu run --stats-interval` controls periodic runtime stats; `0`
   disables periodic stats while preserving final shutdown stats.
 - The transient systemd smoke and stress helpers accept `--capabilities` so a
   broader compatibility `CapabilityBoundingSet` can be validated on hosts where
@@ -292,13 +292,13 @@ Implemented deterministic rules:
   normalized events with no persistence or correlation drops, but still had
   about 31.5M aggregate ring-buffer drops and a 3.5G memory peak. Per-collector
   drop breakdowns isolated the issue to `file_write`, and event summaries showed
-  the dominant source was runtime-guard writing its own SQLite WAL/database.
+  the dominant source was tracejutsu writing its own SQLite WAL/database.
   After self-PID exclusion, plugged-in idle, light desktop, and 30-minute
   normal-use all-collector stress runs completed with zero ring-buffer,
   syscall-correlation, and persistence drops. Broader stress testing across
   heavier workloads, kernel versions, containers, and network namespaces
   remains.
-- `runtime-guard show` appends an existing stored LLM analysis after the
+- `tracejutsu show` appends an existing stored LLM analysis after the
   deterministic incident evidence when one is available.
 
 ## Validation
@@ -312,27 +312,27 @@ scripts/release-check.sh
 The release gate above runs the non-root checks below:
 
 ```sh
-GOCACHE=/tmp/runtime-guard-gocache \
-GOMODCACHE=/tmp/runtime-guard-gomodcache \
+GOCACHE=/tmp/tracejutsu-gocache \
+GOMODCACHE=/tmp/tracejutsu-gomodcache \
 go test ./...
 
-GOCACHE=/tmp/runtime-guard-gocache \
-GOMODCACHE=/tmp/runtime-guard-gomodcache \
+GOCACHE=/tmp/tracejutsu-gocache \
+GOMODCACHE=/tmp/tracejutsu-gomodcache \
 go vet ./...
 
-GOCACHE=/tmp/runtime-guard-gocache \
-GOMODCACHE=/tmp/runtime-guard-gomodcache \
+GOCACHE=/tmp/tracejutsu-gocache \
+GOMODCACHE=/tmp/tracejutsu-gomodcache \
 go test -race ./...
 
-GOCACHE=/tmp/runtime-guard-gocache \
-GOMODCACHE=/tmp/runtime-guard-gomodcache \
+GOCACHE=/tmp/tracejutsu-gocache \
+GOMODCACHE=/tmp/tracejutsu-gomodcache \
 go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
 
-GOCACHE=/tmp/runtime-guard-gocache \
-GOMODCACHE=/tmp/runtime-guard-gomodcache \
+GOCACHE=/tmp/tracejutsu-gocache \
+GOMODCACHE=/tmp/tracejutsu-gomodcache \
 go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-scripts/dependency-review.sh --out /tmp/runtime-guard-dependency-review.md
+scripts/dependency-review.sh --out /tmp/tracejutsu-dependency-review.md
 ```
 
 All commands above passed on 2026-06-04 after the validation helper hardening
@@ -352,7 +352,7 @@ The latest focused connect smoke validation passed with both IPv4 and IPv6:
 
 ```sh
 sudo env \
-  GOCACHE=/tmp/runtime-guard-gocache \
+  GOCACHE=/tmp/tracejutsu-gocache \
   GOMODCACHE="$(go env GOMODCACHE)" \
   "$(command -v go)" test -tags=ebpf_smoke ./internal/ebpf \
   -run 'TestConnectCollectorSmoke' -v
@@ -376,19 +376,19 @@ collector_correlation_dropped=execve:0,connect:0,file_write:0,chmod:0
 Run the non-root fake pipeline:
 
 ```sh
-mkdir -p "$HOME/.local/state/runtime-guard"
-chmod 700 "$HOME/.local/state/runtime-guard"
-DB="$HOME/.local/state/runtime-guard/runtime-guard.db"
-go run ./cmd/runtime-guard demo --db "$DB"
-go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
+mkdir -p "$HOME/.local/state/tracejutsu"
+chmod 700 "$HOME/.local/state/tracejutsu"
+DB="$HOME/.local/state/tracejutsu/tracejutsu.db"
+go run ./cmd/tracejutsu demo --db "$DB"
+go run ./cmd/tracejutsu show --db "$DB" inc-evt-001
 ```
 
 Run local LLM analysis:
 
 ```sh
 llama-server --model /path/to/model.gguf --port 8080
-go run ./cmd/runtime-guard llm --db "$DB" inc-evt-001
-go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
+go run ./cmd/tracejutsu llm --db "$DB" inc-evt-001
+go run ./cmd/tracejutsu show --db "$DB" inc-evt-001
 ```
 
 ## Recommended Next Task
@@ -403,7 +403,7 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 
 3. Run `scripts/build-release.sh --version v0.1.0` and
    `scripts/build-deb.sh --version v0.1.0` once on the release host, then
-   inspect the generated artifacts and `runtime-guard version` output.
+   inspect the generated artifacts and `tracejutsu version` output.
 4. Generate `scripts/dependency-review.sh --out dist/dependency-review.md` and
    review the dependency/license inventory.
 5. Generate `scripts/release-manifest.sh --dir dist --sign` and verify the
@@ -418,7 +418,7 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
 ## File Map
 
 ```text
-cmd/runtime-guard/        CLI routing and live loop
+cmd/tracejutsu/        CLI routing and live loop
 internal/ebpf/            Linux amd64/native-arm64 raw-tracepoint collectors
 internal/events/          normalized event model and grouping
 internal/pipeline/        grouper -> detector -> compressor orchestration

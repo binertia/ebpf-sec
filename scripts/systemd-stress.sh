@@ -5,10 +5,10 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/systemd-stress.sh [--duration 30m] [--stats-interval 1m] [--collectors all] [--file-write-min-bytes 0] [--capabilities "CAP_BPF CAP_PERFMON ..."] [--yes]
 
-Builds a temporary runtime-guard binary and runs it under a transient systemd
+Builds a temporary tracejutsu binary and runs it under a transient systemd
 unit using the packaged service sandbox and tuned buffer settings. This is a
 longer passive stress run: it observes normal host activity and does not install,
-replace, enable, or stop the real runtime-guard.service.
+replace, enable, or stop the real tracejutsu.service.
 
 Options:
   --duration DURATION        How long to run the transient service. Default: 30m.
@@ -131,10 +131,10 @@ if ! timeout "$stats_interval" true >/dev/null 2>&1; then
 fi
 validate_capabilities "$capabilities"
 
-lock_file=/tmp/runtime-guard-systemd-helper.lock
+lock_file=/tmp/tracejutsu-systemd-helper.lock
 exec 9>"$lock_file"
 if ! flock -n 9; then
-	echo "another Runtime Guard systemd smoke/stress helper is already running" >&2
+	echo "another Tracejutsu systemd smoke/stress helper is already running" >&2
 	echo "wait for it to finish before starting a new helper run" >&2
 	exit 1
 fi
@@ -144,17 +144,17 @@ cd "$repo_root"
 source "$repo_root/scripts/systemd-helper-lib.sh"
 
 run_id="$(date +%Y%m%d%H%M%S)-$$"
-unit="runtime-guard-stress-$run_id"
+unit="tracejutsu-stress-$run_id"
 service_unit="$unit.service"
 state_name="$unit"
 state_dir="/var/lib/$state_name"
-repo_binary="$repo_root/bin/runtime-guard-stress-$run_id"
-repo_runner_script="$repo_root/bin/runtime-guard-stress-runner-$run_id.sh"
-state_binary="$state_dir/runtime-guard-stress"
-state_runner_script="$state_dir/runtime-guard-stress-runner.sh"
+repo_binary="$repo_root/bin/tracejutsu-stress-$run_id"
+repo_runner_script="$repo_root/bin/tracejutsu-stress-runner-$run_id.sh"
+state_binary="$state_dir/tracejutsu-stress"
+state_runner_script="$state_dir/tracejutsu-stress-runner.sh"
 
 cat <<EOF
-Runtime Guard systemd stress test
+Tracejutsu systemd stress test
 
 Will:
   - build: $repo_binary
@@ -168,7 +168,7 @@ Will:
   - file write minimum bytes: $file_write_min_bytes
   - capabilities: $capabilities
   - write only inside service state: $state_dir
-  - leave the real runtime-guard.service untouched
+  - leave the real tracejutsu.service untouched
 
 Tuned runtime settings:
   - event_buffer=16384
@@ -178,12 +178,12 @@ Tuned runtime settings:
   - file_write_min_bytes=$file_write_min_bytes
 
 Will not:
-  - install or replace packaging/systemd/runtime-guard.service
+  - install or replace packaging/systemd/tracejutsu.service
   - enable a boot service
   - generate artificial load
   - write outside the repo build path and the dedicated service state directory
 EOF
-runtime_guard_print_host_fingerprint
+tracejutsu_print_host_fingerprint
 
 if [[ "$assume_yes" -ne 1 ]]; then
 	if [[ ! -t 0 ]]; then
@@ -201,12 +201,12 @@ if [[ "$assume_yes" -ne 1 ]]; then
 	esac
 fi
 
-runtime_guard_require_sudo_access
+tracejutsu_require_sudo_access
 
 mkdir -p "$repo_root/bin"
-GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}" \
-GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}" \
-	go build -trimpath -o "$repo_binary" ./cmd/runtime-guard
+GOCACHE="${GOCACHE:-/tmp/tracejutsu-gocache}" \
+GOMODCACHE="${GOMODCACHE:-/tmp/tracejutsu-gomodcache}" \
+	go build -trimpath -o "$repo_binary" ./cmd/tracejutsu
 
 cat >"$repo_runner_script" <<'EOF'
 #!/bin/sh
@@ -218,7 +218,7 @@ stats_interval=$4
 collectors=$5
 file_write_min_bytes=$6
 state_dir="/var/lib/$state_name"
-db="$state_dir/runtime-guard.db"
+db="$state_dir/tracejutsu.db"
 
 "$guard_bin" run \
 	--db "$db" \
@@ -296,7 +296,7 @@ systemd_args=(
 	"$state_runner_script" "$state_binary" "$state_name" "$duration" "$stats_interval" "$collectors" "$file_write_min_bytes"
 )
 
-run_output_file="$(mktemp -t runtime-guard-systemd-run.XXXXXX)"
+run_output_file="$(mktemp -t tracejutsu-systemd-run.XXXXXX)"
 set +e
 sudo systemd-run "${systemd_args[@]}" 2>&1 | tee "$run_output_file"
 run_status=${PIPESTATUS[0]}
@@ -320,10 +320,10 @@ echo "===== journalctl -u $service_unit ====="
 journal_output="$(sudo journalctl -u "$service_unit" -n 240 --no-pager 2>&1)" || journal_status=$?
 printf '%s\n' "$journal_output"
 
-runtime_guard_print_validation_summary "$run_status" "$run_output" "$journal_output"
-final_stats="$(runtime_guard_final_runtime_stats "$journal_output")"
+tracejutsu_print_validation_summary "$run_status" "$run_output" "$journal_output"
+final_stats="$(tracejutsu_final_runtime_stats "$journal_output")"
 set +e
-runtime_guard_validation_exit_status "$run_status" "$final_stats"
+tracejutsu_validation_exit_status "$run_status" "$final_stats"
 validation_status=$?
 set -e
 
@@ -331,9 +331,9 @@ echo
 echo "State directory left for inspection: $state_dir"
 echo "Useful inspection commands:"
 echo "  sudo du -h '$state_dir'"
-echo "  sudo '$state_binary' event-summary --db '$state_dir/runtime-guard.db' --type file_write --limit 10"
-echo "  sudo '$state_binary' incidents --db '$state_dir/runtime-guard.db'"
-echo "  sudo '$state_binary' events --db '$state_dir/runtime-guard.db' --limit 5"
+echo "  sudo '$state_binary' event-summary --db '$state_dir/tracejutsu.db' --type file_write --limit 10"
+echo "  sudo '$state_binary' incidents --db '$state_dir/tracejutsu.db'"
+echo "  sudo '$state_binary' events --db '$state_dir/tracejutsu.db' --limit 5"
 echo "Cleanup command after inspection:"
 echo "  sudo rm -rf -- '$state_dir'"
 echo "  rm -f -- '$repo_binary'"

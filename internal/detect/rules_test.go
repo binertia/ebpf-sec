@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/detect"
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/detect"
+	"tracejutsu/internal/events"
 )
 
 func TestBasicAnalyzeDownloadExecuteConnectFixture(t *testing.T) {

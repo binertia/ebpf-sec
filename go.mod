@@ -1,4 +1,4 @@
-module runtime-guard
+module tracejutsu
 
 go 1.26
 

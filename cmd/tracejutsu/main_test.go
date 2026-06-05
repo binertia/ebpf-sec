@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
-	sensor "runtime-guard/internal/ebpf"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/store"
+	"tracejutsu/internal/compress"
+	sensor "tracejutsu/internal/ebpf"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/store"
 )
 
 type stubLLMClient struct{}
@@ -163,7 +163,7 @@ func TestRunVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		"runtime-guard v1.2.3",
+		"tracejutsu v1.2.3",
 		"commit: abc123",
 		"build_date: 2026-06-04T10:00:00Z",
 	} {
@@ -236,7 +236,7 @@ func TestRunLLMAnalyzesStoredIncident(t *testing.T) {
 	if err := os.Chmod(databaseDirectory, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	databasePath := filepath.Join(databaseDirectory, "runtime-guard.db")
+	databasePath := filepath.Join(databaseDirectory, "tracejutsu.db")
 	if err := run([]string{
 		"demo",
 		"--db", databasePath,
@@ -330,7 +330,7 @@ func TestRunEventSummary(t *testing.T) {
 	if err := os.Chmod(databaseDirectory, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	databasePath := filepath.Join(databaseDirectory, "runtime-guard.db")
+	databasePath := filepath.Join(databaseDirectory, "tracejutsu.db")
 	database, err := store.OpenSQLite(databasePath)
 	if err != nil {
 		t.Fatal(err)
@@ -404,7 +404,7 @@ func TestRunDBStats(t *testing.T) {
 	if err := os.Chmod(databaseDirectory, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	databasePath := filepath.Join(databaseDirectory, "runtime-guard.db")
+	databasePath := filepath.Join(databaseDirectory, "tracejutsu.db")
 	if err := run([]string{
 		"demo",
 		"--db", databasePath,

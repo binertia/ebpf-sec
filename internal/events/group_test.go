@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 func TestTreeGrouperSeparatesUnrelatedProcesses(t *testing.T) {

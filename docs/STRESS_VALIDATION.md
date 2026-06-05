@@ -1,7 +1,7 @@
-# Runtime Guard Stress Validation
+# Tracejutsu Stress Validation
 
 This is the active validation track after the MVP. The goal is to compare
-Runtime Guard across real kernels, distributions, and container/network
+Tracejutsu across real kernels, distributions, and container/network
 namespace setups before treating the packaged service as broadly installable.
 
 Arm64 hardware validation is separate and experimental. See `ARM_TEST.md`.
@@ -40,16 +40,16 @@ metadata, summaries, and checksums into one archive for release evidence.
 On each target, from the repository root:
 
 ```sh
-GOCACHE=/tmp/runtime-guard-gocache go test ./...
-GOCACHE=/tmp/runtime-guard-gocache go vet ./...
-GOCACHE=/tmp/runtime-guard-gocache go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
+GOCACHE=/tmp/tracejutsu-gocache go test ./...
+GOCACHE=/tmp/tracejutsu-gocache go vet ./...
+GOCACHE=/tmp/tracejutsu-gocache go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
 ```
 
 Then run root eBPF smoke:
 
 ```sh
 sudo env \
-  GOCACHE=/tmp/runtime-guard-gocache \
+  GOCACHE=/tmp/tracejutsu-gocache \
   GOMODCACHE="$(go env GOMODCACHE)" \
   "$(command -v go)" test -tags=ebpf_smoke ./internal/ebpf \
   -run 'Test(Execve|Connect|FileWrite|Chmod)CollectorSmoke' -v
@@ -104,9 +104,9 @@ After stress exits, confirm the final validation summary passes and inspect the
 stress database for stored events with non-empty container metadata:
 
 ```sh
-sudo /var/lib/runtime-guard-stress-.../runtime-guard-stress \
+sudo /var/lib/tracejutsu-stress-.../tracejutsu-stress \
   events \
-  --db /var/lib/runtime-guard-stress-.../runtime-guard.db \
+  --db /var/lib/tracejutsu-stress-.../tracejutsu.db \
   --limit 100000 |
   grep -E '"container_id":"[^"]+"'
 ```
@@ -119,9 +119,9 @@ Save the metadata sample to a supporting log before cleaning the stress state
 directory:
 
 ```sh
-sudo /var/lib/runtime-guard-stress-.../runtime-guard-stress \
+sudo /var/lib/tracejutsu-stress-.../tracejutsu-stress \
   events \
-  --db /var/lib/runtime-guard-stress-.../runtime-guard.db \
+  --db /var/lib/tracejutsu-stress-.../tracejutsu.db \
   --limit 100000 |
   grep -m 5 -E '"container_id":"[^"]+"' \
   > rg-container-metadata-sample.log
@@ -142,9 +142,9 @@ Save logs when comparing hosts:
 
 ```sh
 scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes \
-  2>&1 | tee runtime-guard-stress-hostname.log
+  2>&1 | tee tracejutsu-stress-hostname.log
 
-scripts/validation-summary.sh runtime-guard-stress-hostname.log
+scripts/validation-summary.sh tracejutsu-stress-hostname.log
 
 scripts/validation-bundle.sh \
   --name ubuntu-24-vps \
@@ -210,9 +210,9 @@ target kernel.
 Capture the final summary and run `event-summary` against the stress database:
 
 ```sh
-sudo /var/lib/runtime-guard-stress-.../runtime-guard-stress \
+sudo /var/lib/tracejutsu-stress-.../tracejutsu-stress \
   event-summary \
-  --db /var/lib/runtime-guard-stress-.../runtime-guard.db \
+  --db /var/lib/tracejutsu-stress-.../tracejutsu.db \
   --type file_write \
   --limit 10
 ```

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/detect"
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/detect"
+	"tracejutsu/internal/events"
 )
 
 const (

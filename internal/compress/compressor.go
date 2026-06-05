@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"runtime-guard/internal/detect"
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/detect"
+	"tracejutsu/internal/events"
 )
 
 type RootProcess struct {

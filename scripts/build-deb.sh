@@ -8,18 +8,18 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/build-deb.sh [--version VERSION] [--out DIR] [--target linux/amd64|linux/arm64] [--maintainer "NAME <EMAIL>"]
 
-Builds a Debian package for Runtime Guard and writes a SHA256 checksum. The
+Builds a Debian package for Tracejutsu and writes a SHA256 checksum. The
 package installs:
-  - /usr/bin/runtime-guard
-  - /lib/systemd/system/runtime-guard.service
-  - documentation under /usr/share/doc/runtime-guard
+  - /usr/bin/tracejutsu
+  - /lib/systemd/system/tracejutsu.service
+  - documentation under /usr/share/doc/tracejutsu
 
 The package does not enable or start the service automatically.
 
 If SOURCE_DATE_EPOCH is set, build metadata and package timestamps use that
 Unix timestamp.
 
-Set --maintainer or RUNTIME_GUARD_PACKAGE_MAINTAINER before publishing a package
+Set --maintainer or TRACEJUTSU_PACKAGE_MAINTAINER before publishing a package
 for other users. The default maintainer is a placeholder.
 EOF
 }
@@ -27,7 +27,7 @@ EOF
 version=""
 out_dir="dist"
 target=""
-maintainer="${RUNTIME_GUARD_PACKAGE_MAINTAINER:-Runtime Guard Maintainers <maintainers@example.invalid>}"
+maintainer="${TRACEJUTSU_PACKAGE_MAINTAINER:-Tracejutsu Maintainers <maintainers@example.invalid>}"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -179,7 +179,7 @@ normalize_tree_metadata() {
 	local root=$1
 	find "$root" -type d -exec chmod 0755 {} +
 	find "$root" -type f -exec chmod 0644 {} +
-	chmod 0755 "$root/usr/bin/runtime-guard"
+	chmod 0755 "$root/usr/bin/tracejutsu"
 	chmod 0755 "$root/DEBIAN/postinst" "$root/DEBIAN/postrm"
 	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
 		find "$root" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
@@ -193,8 +193,8 @@ require_command git
 require_command go
 require_command sha256sum
 
-export GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}"
-export GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}"
+export GOCACHE="${GOCACHE:-/tmp/tracejutsu-gocache}"
+export GOMODCACHE="${GOMODCACHE:-/tmp/tracejutsu-gomodcache}"
 
 if [[ -z "$target" ]]; then
 	target="$(go env GOOS)/$(go env GOARCH)"
@@ -217,7 +217,7 @@ validate_control_field maintainer "$maintainer"
 target_os="${target%/*}"
 target_arch="${target#*/}"
 package_arch="$(debian_arch "$target")"
-package_name="runtime-guard_${debian_version}_${package_arch}"
+package_name="tracejutsu_${debian_version}_${package_arch}"
 
 mkdir -p "$out_dir"
 out_dir="$(cd "$out_dir" && pwd)"
@@ -229,7 +229,7 @@ install -d \
 	"$pkg_root/DEBIAN" \
 	"$pkg_root/usr/bin" \
 	"$pkg_root/lib/systemd/system" \
-	"$pkg_root/usr/share/doc/runtime-guard"
+	"$pkg_root/usr/share/doc/tracejutsu"
 
 cc="$(target_cc "$target")"
 build_env=(
@@ -242,16 +242,16 @@ if [[ -n "$cc" ]]; then
 fi
 ldflags="-s -w -X main.buildVersion=$version -X main.buildCommit=$commit -X main.buildDate=$build_date"
 
-env "${build_env[@]}" go build -trimpath -ldflags "$ldflags" -o "$pkg_root/usr/bin/runtime-guard" ./cmd/runtime-guard
-chmod 0755 "$pkg_root/usr/bin/runtime-guard"
-install -m 0644 packaging/systemd/runtime-guard.service "$pkg_root/lib/systemd/system/runtime-guard.service"
-sed -i 's#/usr/local/bin/runtime-guard#/usr/bin/runtime-guard#g' "$pkg_root/lib/systemd/system/runtime-guard.service"
-install -m 0644 README.md "$pkg_root/usr/share/doc/runtime-guard/README.md"
-install -m 0644 docs/INSTALL.md "$pkg_root/usr/share/doc/runtime-guard/INSTALL.md"
-install -m 0644 docs/OPERATIONS.md "$pkg_root/usr/share/doc/runtime-guard/OPERATIONS.md"
+env "${build_env[@]}" go build -trimpath -ldflags "$ldflags" -o "$pkg_root/usr/bin/tracejutsu" ./cmd/tracejutsu
+chmod 0755 "$pkg_root/usr/bin/tracejutsu"
+install -m 0644 packaging/systemd/tracejutsu.service "$pkg_root/lib/systemd/system/tracejutsu.service"
+sed -i 's#/usr/local/bin/tracejutsu#/usr/bin/tracejutsu#g' "$pkg_root/lib/systemd/system/tracejutsu.service"
+install -m 0644 README.md "$pkg_root/usr/share/doc/tracejutsu/README.md"
+install -m 0644 docs/INSTALL.md "$pkg_root/usr/share/doc/tracejutsu/INSTALL.md"
+install -m 0644 docs/OPERATIONS.md "$pkg_root/usr/share/doc/tracejutsu/OPERATIONS.md"
 
 cat >"$pkg_root/DEBIAN/control" <<EOF
-Package: runtime-guard
+Package: tracejutsu
 Version: $debian_version
 Section: admin
 Priority: optional
@@ -259,7 +259,7 @@ Architecture: $package_arch
 Maintainer: $maintainer
 Depends: libc6, systemd
 Description: Local-first eBPF runtime security analyst
- Runtime Guard observes selected runtime events with eBPF, groups related
+ Tracejutsu observes selected runtime events with eBPF, groups related
  activity into deterministic incidents, and stores local SQLite evidence for
  terminal inspection and optional local LLM analysis.
 EOF

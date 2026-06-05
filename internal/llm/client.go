@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/redact"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/redact"
 )
 
 type Report struct {

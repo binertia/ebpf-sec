@@ -1,4 +1,4 @@
-# Runtime Guard ARM Test
+# Tracejutsu ARM Test
 
 This is an experimental validation track for native 64-bit arm64 Linux hosts.
 It is not required for the current amd64 deployment path, and it should not
@@ -65,16 +65,16 @@ validation, `rsync` or `scp` without `.git` is enough.
 From the repository root on the VPS:
 
 ```sh
-GOCACHE=/tmp/runtime-guard-gocache go test ./...
-GOCACHE=/tmp/runtime-guard-gocache go vet ./...
-GOCACHE=/tmp/runtime-guard-gocache go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
+GOCACHE=/tmp/tracejutsu-gocache go test ./...
+GOCACHE=/tmp/tracejutsu-gocache go vet ./...
+GOCACHE=/tmp/tracejutsu-gocache go test -tags=ebpf_smoke ./internal/ebpf -run '^$'
 ```
 
 Run the root eBPF smoke suite:
 
 ```sh
 sudo env \
-  GOCACHE=/tmp/runtime-guard-gocache \
+  GOCACHE=/tmp/tracejutsu-gocache \
   GOMODCACHE="$(go env GOMODCACHE)" \
   "$(command -v go)" test -tags=ebpf_smoke ./internal/ebpf \
   -run 'Test(Execve|Connect|FileWrite|Chmod)CollectorSmoke' -v
@@ -125,8 +125,8 @@ Send back only:
 After inspection:
 
 ```sh
-sudo rm -rf /var/lib/runtime-guard-smoke-* /var/lib/runtime-guard-stress-*
-rm -f bin/runtime-guard-smoke-* bin/runtime-guard-stress-*
+sudo rm -rf /var/lib/tracejutsu-smoke-* /var/lib/tracejutsu-stress-*
+rm -f bin/tracejutsu-smoke-* bin/tracejutsu-stress-*
 ```
 
 Destroy the VPS when finished.

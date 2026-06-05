@@ -21,7 +21,7 @@ import (
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 const (

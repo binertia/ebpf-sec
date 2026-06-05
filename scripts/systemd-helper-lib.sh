@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-runtime_guard_os_name() {
+tracejutsu_os_name() {
 	if [[ -r /etc/os-release ]]; then
 		(
 			. /etc/os-release
@@ -11,7 +11,7 @@ runtime_guard_os_name() {
 	printf 'unknown'
 }
 
-runtime_guard_command_line() {
+tracejutsu_command_line() {
 	local command_name=$1
 	shift
 	if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -21,7 +21,7 @@ runtime_guard_command_line() {
 	"$command_name" "$@" 2>/dev/null | sed -n '1p'
 }
 
-runtime_guard_virtualization() {
+tracejutsu_virtualization() {
 	if ! command -v systemd-detect-virt >/dev/null 2>&1; then
 		printf 'unknown'
 		return
@@ -35,7 +35,7 @@ runtime_guard_virtualization() {
 	printf '%s' "$detected"
 }
 
-runtime_guard_container() {
+tracejutsu_container() {
 	if ! command -v systemd-detect-virt >/dev/null 2>&1; then
 		printf 'unknown'
 		return
@@ -49,25 +49,25 @@ runtime_guard_container() {
 	printf '%s' "$detected"
 }
 
-runtime_guard_cgroup_fs() {
+tracejutsu_cgroup_fs() {
 	stat -fc '%T' /sys/fs/cgroup 2>/dev/null || printf 'unknown'
 }
 
-runtime_guard_print_host_fingerprint() {
+tracejutsu_print_host_fingerprint() {
 	echo
 	echo "===== host fingerprint ====="
 	echo "hostname: $(hostname 2>/dev/null || printf 'unknown')"
-	echo "os: $(runtime_guard_os_name)"
+	echo "os: $(tracejutsu_os_name)"
 	echo "kernel: $(uname -srmo 2>/dev/null || printf 'unknown')"
 	echo "arch: $(uname -m 2>/dev/null || printf 'unknown')"
-	echo "systemd: $(runtime_guard_command_line systemctl --version)"
-	echo "go: $(runtime_guard_command_line go version)"
-	echo "cgroup_fs: $(runtime_guard_cgroup_fs)"
-	echo "virtualization: $(runtime_guard_virtualization)"
-	echo "container: $(runtime_guard_container)"
+	echo "systemd: $(tracejutsu_command_line systemctl --version)"
+	echo "go: $(tracejutsu_command_line go version)"
+	echo "cgroup_fs: $(tracejutsu_cgroup_fs)"
+	echo "virtualization: $(tracejutsu_virtualization)"
+	echo "container: $(tracejutsu_container)"
 }
 
-runtime_guard_require_sudo_access() {
+tracejutsu_require_sudo_access() {
 	if sudo -n true 2>/dev/null; then
 		return
 	fi
@@ -80,12 +80,12 @@ runtime_guard_require_sudo_access() {
 	exit 1
 }
 
-runtime_guard_final_runtime_stats() {
+tracejutsu_final_runtime_stats() {
 	local journal_output=$1
 	printf '%s\n' "$journal_output" | grep 'runtime stats:' | tail -n 1 || true
 }
 
-runtime_guard_stats_counter_value() {
+tracejutsu_stats_counter_value() {
 	local stats=$1
 	local counter=$2
 	local regex="(^|[[:space:]])${counter}=([0-9]+)"
@@ -96,7 +96,7 @@ runtime_guard_stats_counter_value() {
 	printf 'missing'
 }
 
-runtime_guard_stats_token() {
+tracejutsu_stats_token() {
 	local stats=$1
 	local token=$2
 	local regex="(^|[[:space:]])${token}=([^[:space:]]+)"
@@ -105,7 +105,7 @@ runtime_guard_stats_token() {
 	fi
 }
 
-runtime_guard_validation_exit_status() {
+tracejutsu_validation_exit_status() {
 	local run_status=$1
 	local final_stats=$2
 	local counter
@@ -117,7 +117,7 @@ runtime_guard_validation_exit_status() {
 		return 1
 	fi
 	for counter in ring_dropped correlation_dropped persist_dropped incident_persist_dropped; do
-		value="$(runtime_guard_stats_counter_value "$final_stats" "$counter")"
+		value="$(tracejutsu_stats_counter_value "$final_stats" "$counter")"
 		if [[ "$value" != "0" ]]; then
 			return 1
 		fi
@@ -125,7 +125,7 @@ runtime_guard_validation_exit_status() {
 	return 0
 }
 
-runtime_guard_print_validation_summary() {
+tracejutsu_print_validation_summary() {
 	local run_status=$1
 	local run_output=$2
 	local journal_output=$3
@@ -135,7 +135,7 @@ runtime_guard_print_validation_summary() {
 	local value
 	local collector_ring
 	local collector_correlation
-	final_stats="$(runtime_guard_final_runtime_stats "$journal_output")"
+	final_stats="$(tracejutsu_final_runtime_stats "$journal_output")"
 
 	echo
 	echo "===== validation summary ====="
@@ -145,7 +145,7 @@ runtime_guard_print_validation_summary() {
 	if [[ -n "$final_stats" ]]; then
 		echo "final_runtime_stats: $final_stats"
 		for counter in ring_dropped correlation_dropped persist_dropped incident_persist_dropped; do
-			value="$(runtime_guard_stats_counter_value "$final_stats" "$counter")"
+			value="$(tracejutsu_stats_counter_value "$final_stats" "$counter")"
 			if [[ "$value" == "0" ]]; then
 				echo "$counter: ok"
 			elif [[ "$value" == "missing" ]]; then
@@ -154,18 +154,18 @@ runtime_guard_print_validation_summary() {
 				echo "$counter: nonzero ($value)"
 			fi
 		done
-		collector_ring="$(runtime_guard_stats_token "$final_stats" collector_ring_dropped)"
+		collector_ring="$(tracejutsu_stats_token "$final_stats" collector_ring_dropped)"
 		if [[ -n "$collector_ring" ]]; then
 			echo "collector_ring_dropped: $collector_ring"
 		fi
-		collector_correlation="$(runtime_guard_stats_token "$final_stats" collector_correlation_dropped)"
+		collector_correlation="$(tracejutsu_stats_token "$final_stats" collector_correlation_dropped)"
 		if [[ -n "$collector_correlation" ]]; then
 			echo "collector_correlation_dropped: $collector_correlation"
 		fi
 	else
 		echo "final_runtime_stats: not found"
 	fi
-	if runtime_guard_validation_exit_status "$run_status" "$final_stats"; then
+	if tracejutsu_validation_exit_status "$run_status" "$final_stats"; then
 		validation_status=pass
 	else
 		validation_status=fail

@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/events"
 )
 
 var sensitiveKeyPattern = regexp.MustCompile(`(?i)(authorization|api[_-]?key|access[_-]?key|token|secret|password|passwd|pwd|session|bearer|cookie|credential|private[_-]?key)`)

@@ -10,9 +10,9 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/redact"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/redact"
 )
 
 const defaultLimit = 50

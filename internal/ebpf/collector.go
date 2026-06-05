@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 const (

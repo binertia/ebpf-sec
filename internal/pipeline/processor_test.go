@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/detect"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/pipeline"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/detect"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/pipeline"
 )
 
 func TestProcessorFlushesSuspiciousInactiveCandidate(t *testing.T) {

@@ -1,16 +1,16 @@
-# Runtime Guard Operations
+# Tracejutsu Operations
 
 This guide covers basic maintenance for an installed local service. Runtime
 Guard stores normalized events, incidents, and optional LLM reports in SQLite
-under `/var/lib/runtime-guard/runtime-guard.db`.
+under `/var/lib/tracejutsu/tracejutsu.db`.
 
 ## Monitor Growth
 
 Check database table counts and file sizes:
 
 ```sh
-sudo /usr/local/bin/runtime-guard db-stats \
-  --db /var/lib/runtime-guard/runtime-guard.db
+sudo /usr/local/bin/tracejutsu db-stats \
+  --db /var/lib/tracejutsu/tracejutsu.db
 ```
 
 Watch these fields over time:
@@ -26,8 +26,8 @@ If file-write volume is high, inspect event sources before changing retention
 or collector settings:
 
 ```sh
-sudo /usr/local/bin/runtime-guard event-summary \
-  --db /var/lib/runtime-guard/runtime-guard.db \
+sudo /usr/local/bin/tracejutsu event-summary \
+  --db /var/lib/tracejutsu/tracejutsu.db \
   --type file_write \
   --limit 20
 ```
@@ -38,15 +38,15 @@ The service uses SQLite WAL mode. Prefer SQLite's online backup command instead
 of copying only the main database file while the service is running:
 
 ```sh
-sudo install -d -o root -g root -m 0700 /var/backups/runtime-guard
-sudo sqlite3 /var/lib/runtime-guard/runtime-guard.db \
-  ".backup '/var/backups/runtime-guard/runtime-guard-$(date -u +%Y%m%dT%H%M%SZ).db'"
+sudo install -d -o root -g root -m 0700 /var/backups/tracejutsu
+sudo sqlite3 /var/lib/tracejutsu/tracejutsu.db \
+  ".backup '/var/backups/tracejutsu/tracejutsu-$(date -u +%Y%m%dT%H%M%SZ).db'"
 ```
 
 Confirm backup permissions stay private:
 
 ```sh
-sudo chmod 0600 /var/backups/runtime-guard/runtime-guard-*.db
+sudo chmod 0600 /var/backups/tracejutsu/tracejutsu-*.db
 ```
 
 ## Retention
@@ -66,16 +66,16 @@ production evidence.
 After a deliberate manual cleanup, stop the service before compacting:
 
 ```sh
-sudo systemctl stop runtime-guard.service
-sudo sqlite3 /var/lib/runtime-guard/runtime-guard.db 'PRAGMA wal_checkpoint(TRUNCATE); VACUUM;'
-sudo systemctl start runtime-guard.service
+sudo systemctl stop tracejutsu.service
+sudo sqlite3 /var/lib/tracejutsu/tracejutsu.db 'PRAGMA wal_checkpoint(TRUNCATE); VACUUM;'
+sudo systemctl start tracejutsu.service
 ```
 
 Recheck growth after restart:
 
 ```sh
-sudo /usr/local/bin/runtime-guard db-stats \
-  --db /var/lib/runtime-guard/runtime-guard.db
+sudo /usr/local/bin/tracejutsu db-stats \
+  --db /var/lib/tracejutsu/tracejutsu.db
 ```
 
 ## Journal Retention

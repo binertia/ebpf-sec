@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 type blockingSaver struct {

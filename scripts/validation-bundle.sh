@@ -8,7 +8,7 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/validation-bundle.sh [--name NAME] [--out DIR] [--supporting FILE] LOGFILE [...]
 
-Collects Runtime Guard validation logs into a small release-evidence bundle.
+Collects Tracejutsu validation logs into a small release-evidence bundle.
 The bundle includes:
   - copied log files
   - optional supporting evidence files that are copied but not pass/fail checked
@@ -161,7 +161,7 @@ for file in "${supporting_files[@]}"; do
 	copied_supporting+=("$dest")
 done
 
-runtime_guard_print_host_fingerprint >"$bundle_dir/HOST.txt"
+tracejutsu_print_host_fingerprint >"$bundle_dir/HOST.txt"
 
 {
 	echo "created_at_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/report"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/report"
 )
 
 func TestWriteSanitizesTerminalControlCharacters(t *testing.T) {

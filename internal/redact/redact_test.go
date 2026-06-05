@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/events"
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/redact"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/events"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/redact"
 )
 
 func TestRedactString(t *testing.T) {

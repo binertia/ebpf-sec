@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 type Basic struct{}

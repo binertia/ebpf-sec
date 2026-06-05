@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 func TestEnrichContainerMetadata(t *testing.T) {
@@ -91,5 +91,5 @@ func TestContainerMetadataCacheInvalidatesReusedPID(t *testing.T) {
 }
 
 func procStat(pid int, startTime string) string {
-	return fmt.Sprintf("%d (runtime-guard-test) S %s%s\n", pid, strings.Repeat("0 ", 18), startTime)
+	return fmt.Sprintf("%d (tracejutsu-test) S %s%s\n", pid, strings.Repeat("0 ", 18), startTime)
 }

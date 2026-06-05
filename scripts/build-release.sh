@@ -8,7 +8,7 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/build-release.sh [--version VERSION] [--out DIR] [--target linux/amd64] [--target linux/arm64]
 
-Builds version-stamped Runtime Guard tarballs and SHA256 checksums. By default
+Builds version-stamped Tracejutsu tarballs and SHA256 checksums. By default
 the script builds the current Linux amd64 or arm64 host architecture only.
 
 Cross-building arm64 from amd64 requires CC=aarch64-linux-gnu-gcc or an
@@ -135,7 +135,7 @@ normalize_tree_metadata() {
 	local root=$1
 	find "$root" -type d -exec chmod 0755 {} +
 	find "$root" -type f -exec chmod 0644 {} +
-	chmod 0755 "$root/runtime-guard"
+	chmod 0755 "$root/tracejutsu"
 	if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
 		find "$root" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
 	fi
@@ -161,8 +161,8 @@ require_command gzip
 require_command sha256sum
 require_command tar
 
-export GOCACHE="${GOCACHE:-/tmp/runtime-guard-gocache}"
-export GOMODCACHE="${GOMODCACHE:-/tmp/runtime-guard-gomodcache}"
+export GOCACHE="${GOCACHE:-/tmp/tracejutsu-gocache}"
+export GOMODCACHE="${GOMODCACHE:-/tmp/tracejutsu-gomodcache}"
 
 if [[ -z "$version" ]]; then
 	version="$(git describe --tags --always --dirty)"
@@ -193,9 +193,9 @@ sha_file="$out_dir/SHA256SUMS"
 for target in "${targets[@]}"; do
 	target_os="${target%/*}"
 	target_arch="${target#*/}"
-	artifact_name="runtime-guard-${version}-${target_os}-${target_arch}"
+	artifact_name="tracejutsu-${version}-${target_os}-${target_arch}"
 	artifact_root="$tmp_dir/$artifact_name"
-	binary_path="$artifact_root/runtime-guard"
+	binary_path="$artifact_root/tracejutsu"
 	cc="$(target_cc "$target")"
 
 	mkdir -p "$artifact_root/docs" "$artifact_root/packaging/systemd"
@@ -210,10 +210,10 @@ for target in "${targets[@]}"; do
 	ldflags="-s -w -X main.buildVersion=$version -X main.buildCommit=$commit -X main.buildDate=$build_date"
 
 	echo "building $target -> $artifact_name.tar.gz"
-	env "${build_env[@]}" go build -trimpath -ldflags "$ldflags" -o "$binary_path" ./cmd/runtime-guard
+	env "${build_env[@]}" go build -trimpath -ldflags "$ldflags" -o "$binary_path" ./cmd/tracejutsu
 	cp README.md "$artifact_root/"
 	cp docs/INSTALL.md "$artifact_root/docs/"
-	cp packaging/systemd/runtime-guard.service "$artifact_root/packaging/systemd/"
+	cp packaging/systemd/tracejutsu.service "$artifact_root/packaging/systemd/"
 	normalize_tree_metadata "$artifact_root"
 
 	tarball="$out_dir/$artifact_name.tar.gz"
@@ -227,4 +227,4 @@ done
 
 echo
 echo "release artifacts:"
-find "$out_dir" -maxdepth 1 -type f \( -name 'runtime-guard-*.tar.gz' -o -name 'runtime-guard-*.tar.gz.sha256' -o -name SHA256SUMS \) -print | sort
+find "$out_dir" -maxdepth 1 -type f \( -name 'tracejutsu-*.tar.gz' -o -name 'tracejutsu-*.tar.gz.sha256' -o -name SHA256SUMS \) -print | sort

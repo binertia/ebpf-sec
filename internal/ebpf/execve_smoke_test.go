@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 func TestExecveCollectorSmoke(t *testing.T) {

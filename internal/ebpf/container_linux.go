@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/events"
 )
 
 const (

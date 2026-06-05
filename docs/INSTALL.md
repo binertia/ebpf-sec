@@ -1,4 +1,4 @@
-# Runtime Guard Install Guide
+# Tracejutsu Install Guide
 
 This guide installs the current MVP as a local Linux service. The service stores
 all normalized events and incidents in a local SQLite database and does not call
@@ -12,11 +12,11 @@ library vulnerability findings. Keep `GOTOOLCHAIN=auto` enabled or install Go
 
 ```sh
 go test ./...
-go build -trimpath -o ./bin/runtime-guard ./cmd/runtime-guard
+go build -trimpath -o ./bin/tracejutsu ./cmd/tracejutsu
 ```
 
 For release artifacts, use the repository build script. It stamps
-`runtime-guard version` metadata and writes SHA256 checksums:
+`tracejutsu version` metadata and writes SHA256 checksums:
 
 ```sh
 scripts/build-release.sh --version v0.1.0
@@ -25,7 +25,7 @@ scripts/build-deb.sh --version v0.1.0 --maintainer "Your Name <you@example.com>"
 
 Set `SOURCE_DATE_EPOCH` to a Unix timestamp when repeatable release metadata
 and archive/package timestamps are required.
-Set `--maintainer` or `RUNTIME_GUARD_PACKAGE_MAINTAINER` before publishing a
+Set `--maintainer` or `TRACEJUTSU_PACKAGE_MAINTAINER` before publishing a
 Debian package for other users.
 
 Linux amd64 and native arm64 are supported for live eBPF collection. Build release
@@ -36,30 +36,30 @@ tracked separately in [`ARM_TEST.md`](ARM_TEST.md):
 
 ```sh
 GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc \
-  go build -trimpath -o ./bin/runtime-guard-linux-arm64 ./cmd/runtime-guard
+  go build -trimpath -o ./bin/tracejutsu-linux-arm64 ./cmd/tracejutsu
 ```
 
 ## Install Binary
 
 ```sh
-sudo install -o root -g root -m 0755 ./bin/runtime-guard /usr/local/bin/runtime-guard
+sudo install -o root -g root -m 0755 ./bin/tracejutsu /usr/local/bin/tracejutsu
 ```
 
 Confirm the installed binary runs:
 
 ```sh
-/usr/local/bin/runtime-guard --help
-/usr/local/bin/runtime-guard version
+/usr/local/bin/tracejutsu --help
+/usr/local/bin/tracejutsu version
 ```
 
 If using the generated Debian package, install it with:
 
 ```sh
-sudo apt install ./dist/runtime-guard_0.1.0_amd64.deb
+sudo apt install ./dist/tracejutsu_0.1.0_amd64.deb
 ```
 
-The package installs `/usr/bin/runtime-guard` and
-`/lib/systemd/system/runtime-guard.service`, but does not enable or start the
+The package installs `/usr/bin/tracejutsu` and
+`/lib/systemd/system/tracejutsu.service`, but does not enable or start the
 service automatically.
 
 On a fresh Debian/Ubuntu validation host, test the full package lifecycle before
@@ -69,10 +69,10 @@ using the package on a personal machine or production host:
 scripts/package-install-smoke.sh --duration 2m --yes
 ```
 
-The package smoke helper refuses existing Runtime Guard installs by default,
+The package smoke helper refuses existing Tracejutsu installs by default,
 installs a temporary package, verifies that the service was not auto-started or
 enabled, starts the packaged service, validates final drop counters, stops the
-service, removes the package, and leaves `/var/lib/runtime-guard` for
+service, removes the package, and leaves `/var/lib/tracejutsu` for
 inspection unless `--purge-state` is supplied. Run it inside `tmux` or another
 persistent session on SSH hosts so a client disconnect does not interrupt the
 package cleanup path.
@@ -89,7 +89,7 @@ scripts/release-manifest.sh --dir dist --sign
 ## Install Systemd Service
 
 The included unit runs as root with `CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE`,
-creates `/var/lib/runtime-guard` with `0700` permissions, and applies a systemd
+creates `/var/lib/tracejutsu` with `0700` permissions, and applies a systemd
 sandbox that keeps writes limited to the state directory, hides host devices,
 blocks namespace creation, restricts the service to the native syscall ABI, and
 prevents writable-executable memory. It uses `--quiet-events` and
@@ -106,33 +106,33 @@ The service enables all collectors by default. Add `--collectors` to the unit's
 If file-write volume is too high on a host, test `--file-write-min-bytes`
 before adding it to the service. A nonzero value filters smaller file writes in
 the eBPF exit probe before they enter the ring buffer.
-Runtime Guard excludes its own process PID from file-write capture so SQLite
+Tracejutsu excludes its own process PID from file-write capture so SQLite
 persistence writes do not feed back into the collector.
 
 ```sh
 sudo install -o root -g root -m 0644 \
-  packaging/systemd/runtime-guard.service \
-  /etc/systemd/system/runtime-guard.service
+  packaging/systemd/tracejutsu.service \
+  /etc/systemd/system/tracejutsu.service
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now runtime-guard.service
+sudo systemctl enable --now tracejutsu.service
 ```
 
 Check service health and logs:
 
 ```sh
-sudo systemctl status runtime-guard.service
-sudo journalctl -u runtime-guard.service -f
+sudo systemctl status tracejutsu.service
+sudo journalctl -u tracejutsu.service -f
 ```
 
 Inspect stored data:
 
 ```sh
-sudo /usr/local/bin/runtime-guard events --db /var/lib/runtime-guard/runtime-guard.db
-sudo /usr/local/bin/runtime-guard event-summary --db /var/lib/runtime-guard/runtime-guard.db --type file_write
-sudo /usr/local/bin/runtime-guard db-stats --db /var/lib/runtime-guard/runtime-guard.db
-sudo /usr/local/bin/runtime-guard incidents --db /var/lib/runtime-guard/runtime-guard.db
-sudo /usr/local/bin/runtime-guard show --db /var/lib/runtime-guard/runtime-guard.db <incident_id>
+sudo /usr/local/bin/tracejutsu events --db /var/lib/tracejutsu/tracejutsu.db
+sudo /usr/local/bin/tracejutsu event-summary --db /var/lib/tracejutsu/tracejutsu.db --type file_write
+sudo /usr/local/bin/tracejutsu db-stats --db /var/lib/tracejutsu/tracejutsu.db
+sudo /usr/local/bin/tracejutsu incidents --db /var/lib/tracejutsu/tracejutsu.db
+sudo /usr/local/bin/tracejutsu show --db /var/lib/tracejutsu/tracejutsu.db <incident_id>
 ```
 
 See [`OPERATIONS.md`](OPERATIONS.md) for database growth, backup, compaction,
@@ -145,8 +145,8 @@ stored incident after a local `llama-server` compatible endpoint is available:
 
 ```sh
 llama-server --model /path/to/model.gguf --port 8080
-sudo /usr/local/bin/runtime-guard llm --db /var/lib/runtime-guard/runtime-guard.db <incident_id>
-sudo /usr/local/bin/runtime-guard show --db /var/lib/runtime-guard/runtime-guard.db <incident_id>
+sudo /usr/local/bin/tracejutsu llm --db /var/lib/tracejutsu/tracejutsu.db <incident_id>
+sudo /usr/local/bin/tracejutsu show --db /var/lib/tracejutsu/tracejutsu.db <incident_id>
 ```
 
 Remote LLM endpoints are rejected unless `--allow-remote-endpoint` is supplied.
@@ -200,7 +200,7 @@ Run the eBPF smoke tests before enabling the service on a new host:
 
 ```sh
 sudo env \
-  GOCACHE=/tmp/runtime-guard-gocache \
+  GOCACHE=/tmp/tracejutsu-gocache \
   GOMODCACHE="$(go env GOMODCACHE)" \
   "$(command -v go)" test -tags=ebpf_smoke ./internal/ebpf \
   -run 'Test(Execve|Connect|FileWrite|Chmod)CollectorSmoke' -v
@@ -222,11 +222,11 @@ transient unit before installing the service:
 scripts/systemd-smoke.sh
 ```
 
-The script builds a unique `bin/runtime-guard-smoke-*` binary and generated
+The script builds a unique `bin/tracejutsu-smoke-*` binary and generated
 runner, stages root-owned copies inside that unit's private
-`/var/lib/runtime-guard-smoke-*` state directory, starts a unique
-`runtime-guard-smoke-*` transient unit from the staged runner, prints the service
-status or unload note plus journal, and leaves the real `runtime-guard.service`
+`/var/lib/tracejutsu-smoke-*` state directory, starts a unique
+`tracejutsu-smoke-*` transient unit from the staged runner, prints the service
+status or unload note plus journal, and leaves the real `tracejutsu.service`
 untouched. Use `--capabilities` here to validate a different
 `CapabilityBoundingSet` before creating a real service override.
 
@@ -249,7 +249,7 @@ The stress helper uses the same sandbox and tuned buffer settings as the
 packaged service unless `--capabilities` is supplied for least-privilege
 validation. It does not install the service or generate artificial load.
 The smoke and stress helpers use a shared local lock and refuse overlapping
-helper runs; overlapping Runtime Guard runs can observe each other's SQLite WAL
+helper runs; overlapping Tracejutsu runs can observe each other's SQLite WAL
 writes and invalidate file-write drop results.
 For repeatable multi-host validation, use the matrix in
 [`STRESS_VALIDATION.md`](STRESS_VALIDATION.md).
@@ -265,7 +265,7 @@ If drops return, use `event-summary` against the stress database to inspect the
 stored sample of high-volume processes and paths:
 
 ```sh
-sudo ./bin/runtime-guard-stress-... event-summary --db /var/lib/runtime-guard-stress-.../runtime-guard.db --type file_write --limit 10
+sudo ./bin/tracejutsu-stress-... event-summary --db /var/lib/tracejutsu-stress-.../tracejutsu.db --type file_write --limit 10
 ```
 
 To isolate one collector after a nonzero drop breakdown, rerun with a narrower
@@ -293,17 +293,17 @@ inspect `event-summary` before adding a byte floor to the installed service.
 If installed from the generated Debian package:
 
 ```sh
-sudo systemctl disable --now runtime-guard.service
-sudo dpkg -r runtime-guard
+sudo systemctl disable --now tracejutsu.service
+sudo dpkg -r tracejutsu
 ```
 
 If installed manually:
 
 ```sh
-sudo systemctl disable --now runtime-guard.service
-sudo rm -f /etc/systemd/system/runtime-guard.service
+sudo systemctl disable --now tracejutsu.service
+sudo rm -f /etc/systemd/system/tracejutsu.service
 sudo systemctl daemon-reload
 ```
 
-The local database remains at `/var/lib/runtime-guard/runtime-guard.db` until it
+The local database remains at `/var/lib/tracejutsu/tracejutsu.db` until it
 is removed manually.

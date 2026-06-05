@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/events"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/events"
 )
 
 const DefaultIncidentCapacity = 256

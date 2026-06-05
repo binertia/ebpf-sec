@@ -6,10 +6,10 @@ import (
 	"strings"
 	"unicode"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/detect"
-	"runtime-guard/internal/llm"
-	"runtime-guard/internal/redact"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/detect"
+	"tracejutsu/internal/llm"
+	"tracejutsu/internal/redact"
 )
 
 func Write(writer io.Writer, incident compress.Incident) error {

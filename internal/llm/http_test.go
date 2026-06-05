@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"runtime-guard/internal/compress"
+	"tracejutsu/internal/compress"
 )
 
 func TestHTTPClientAnalyze(t *testing.T) {

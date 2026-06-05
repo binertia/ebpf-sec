@@ -9,7 +9,7 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/container-workload.sh [--runtime auto|docker|podman] [--image IMAGE] [--duration 5m] [--interval 2s] [--pull never|missing|always] [--yes]
 
-Runs a small unprivileged container workload while Runtime Guard is already
+Runs a small unprivileged container workload while Tracejutsu is already
 running on the host. The workload produces exec, file write, chmod, and local
 loopback connect attempts from inside a container so a concurrent stress run can
 validate container metadata and namespace behavior.
@@ -150,7 +150,7 @@ if ! timeout "$interval" true >/dev/null 2>&1; then
 fi
 
 container_runtime="$(resolve_runtime)"
-container_name="runtime-guard-container-workload-$(date +%Y%m%d%H%M%S)-$$"
+container_name="tracejutsu-container-workload-$(date +%Y%m%d%H%M%S)-$$"
 
 if [[ "$pull_policy" == "never" ]]; then
 	if ! "$container_runtime" image inspect "$image" >/dev/null 2>&1; then
@@ -161,7 +161,7 @@ if [[ "$pull_policy" == "never" ]]; then
 fi
 
 cat <<EOF
-Runtime Guard container workload
+Tracejutsu container workload
 
 Will:
   - runtime: $container_runtime
@@ -175,12 +175,12 @@ Will:
   - drop all container capabilities
 
 Will not:
-  - install or replace Runtime Guard
-  - start or stop runtime-guard.service
+  - install or replace Tracejutsu
+  - start or stop tracejutsu.service
   - mount host directories into the container
   - intentionally connect to external networks
 EOF
-runtime_guard_print_host_fingerprint
+tracejutsu_print_host_fingerprint
 
 if [[ "$assume_yes" -ne 1 ]]; then
 	if [[ ! -t 0 ]]; then
@@ -206,10 +206,10 @@ trap cleanup INT TERM EXIT
 workload='
 set -eu
 interval=$1
-workdir=/tmp/runtime-guard-container-workload
+workdir=/tmp/tracejutsu-container-workload
 mkdir -p "$workdir"
 i=0
-echo "runtime-guard container workload started"
+echo "tracejutsu container workload started"
 while :; do
 	i=$((i + 1))
 	/bin/true || true
@@ -217,7 +217,7 @@ while :; do
 	printf "%s\n%s\n" "#!/bin/sh" "exit 0" >"$probe"
 	chmod +x "$probe"
 	"$probe" >/dev/null 2>&1 || true
-	printf "runtime-guard container workload %s\n" "$i" >>"$workdir/events.log"
+	printf "tracejutsu container workload %s\n" "$i" >>"$workdir/events.log"
 	chmod 600 "$workdir/events.log"
 	if command -v nc >/dev/null 2>&1; then
 		nc -z -w 1 127.0.0.1 1 >/dev/null 2>&1 || true

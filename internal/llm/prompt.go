@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"runtime-guard/internal/compress"
-	"runtime-guard/internal/redact"
+	"tracejutsu/internal/compress"
+	"tracejutsu/internal/redact"
 )
 
 const promptTemplate = `You are a local runtime security analyst. Analyze only the compressed incident JSON
