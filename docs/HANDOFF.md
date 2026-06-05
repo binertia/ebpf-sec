@@ -84,6 +84,18 @@ syscall-correlation, event-persistence, and incident-persistence drops. All
 per-collector ring-buffer and syscall-correlation drops were also zero. The
 package lifecycle smoke processed 168 normalized events and removed the package
 cleanly with zero required drops.
+Also on 2026-06-05, a Debian 13 Docker/containerd host completed the
+container-host validation path. A 12-minute all-collector systemd stress run
+with the packaged narrow capability set processed 3,959 normalized events,
+grouped and analyzed 1,052 candidates, persisted 242 expected low-severity
+incidents from the deliberate container workload, and ended with zero
+ring-buffer, syscall-correlation, event-persistence, and incident-persistence
+drops. Per-collector ring-buffer and syscall-correlation drops were zero for
+all collectors. The run consumed 59.511s CPU and peaked at 89.6M memory.
+Stored container workload events included non-empty container metadata, for
+example a 64-character `container_id`, `container_name=8f4d99a9e4d1`,
+`parent_process_name=containerd-shim`, and container process paths such as
+`/bin/sh`, `/bin/mkdir`, and `/bin/chmod`.
 Native arm64 support has compile coverage and a separate experimental VPS
 runbook in [`ARM_TEST.md`](ARM_TEST.md). Real arm64 smoke/stress validation is
 not blocking the next amd64 hardening task.
@@ -109,18 +121,18 @@ Recent signed production-hardening commits after `origin/main`:
 The release helpers now cover fresh-host package lifecycle validation, combined
 checksum manifest generation, optional armored detached GPG signing, and
 configurable Debian maintainer metadata. A container-host workload helper is
-also present for the next validation target; it runs an unprivileged Docker or
-Podman container without host mounts or host networking while the normal systemd
-stress helper observes the host.
+also present and has validated Docker/containerd metadata capture on Debian 13;
+it runs an unprivileged Docker or Podman container without host mounts or host
+networking while the normal systemd stress helper observes the host.
 
 The current handoff target is a production/distribution-grade release. The
 approximate readiness is:
 
 - MVP feature surface: **100% complete**.
 - Personal Debian amd64 install readiness: **93-96% complete**.
-- Debian/Ubuntu amd64 production release: **85-90% complete**.
-- Broad production/distribution-grade release: **73-78% complete**.
-- Multi-distro amd64 plus production arm64 release: **62-67% complete**.
+- Debian/Ubuntu amd64 production release: **87-92% complete**.
+- Broad production/distribution-grade release: **76-81% complete**.
+- Multi-distro amd64 plus production arm64 release: **65-70% complete**.
 
 The remaining percentage is mostly release engineering and validation, not core
 MVP functionality.
@@ -133,9 +145,10 @@ Before calling this distribution-grade, finish these tracks:
   Bookworm, Ubuntu 22.04, and Ubuntu 24.04, including host fingerprint, release
   gate, root smoke, systemd smoke/stress, and package smoke outputs. Use
   `scripts/validation-bundle.sh` to package each host's evidence with checksums.
-- Validate one container-host or stricter kernel/procfs environment. Use
-  `scripts/container-workload.sh` alongside `scripts/systemd-stress.sh` on
-  Docker or Podman hosts.
+- Validate a stricter kernel/procfs environment if target deployments require
+  capability fallback beyond the packaged narrow set. Docker/containerd host
+  metadata capture is already validated on Debian 13 with
+  `scripts/container-workload.sh`.
 - Extend release artifacts beyond the initial tarball and Debian package
   builders if `.rpm` is required. The current builders honor
   `SOURCE_DATE_EPOCH` for repeatable build metadata and archive/package
@@ -393,15 +406,13 @@ go run ./cmd/runtime-guard show --db "$DB" inc-evt-001
    `scripts/validation-bundle.sh`, and copy the final summaries into release
    notes. Prioritize the fresh Ubuntu 22.04 busier pass because it already
    covers smoke, stress, and package lifecycle with zero required drops.
-6. Validate one container host or stricter kernel/procfs environment, then save
-   and summarize the full helper output. For Docker or Podman hosts, run
-   `scripts/container-workload.sh --duration 10m --pull never --yes` while
-   `scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes` is
-   active.
+6. Bundle the Debian 13 Docker/containerd logs, including the stress summary,
+   container-workload output, and the stored-event sample showing non-empty
+   `container_id`.
 7. Re-run package lifecycle smoke on any release target whose full log was not
    preserved after the journal timestamp compatibility fix.
 8. Start `.rpm` or broader package-format work only after evidence bundles are
-   saved and the container/strict-host pass has zero required drops.
+   saved and any required stricter-host pass has zero required drops.
 
 ## File Map
 
