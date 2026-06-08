@@ -1,6 +1,11 @@
 # Tracejutsu Handoff
 
-Updated: 2026-06-06
+Updated: 2026-06-08
+
+> **Release scope:** The `v0.1.0` release is targeting **Debian 13 (trixie) amd64**
+> only. Validation on other distributions is no longer being pursued for this
+> release. See [`dist/v0.1.0/RELEASE_NOTES.md`](../dist/v0.1.0/RELEASE_NOTES.md)
+> for the supported platform summary.
 
 ## Current State
 

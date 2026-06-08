@@ -1,14 +1,17 @@
 # Tracejutsu Stress Validation
 
-This is the active validation track after the MVP. The goal is to compare
-Tracejutsu across real kernels, distributions, and container/network
-namespace setups before treating the packaged service as broadly installable.
+This is the active validation track after the MVP.
+
+> **Release scope:** The `v0.1.0` release is validated and supported for
+> **Debian 13 (trixie) amd64** only. The host matrix below describes the
+> historical validation breadth; for this release, only Debian 13 results are
+> claimed as supported.
 
 Arm64 hardware validation is separate and experimental. See `ARM_TEST.md`.
 
 ## Host Matrix
 
-Start with these targets:
+Historical validation targets:
 
 | Target | Purpose |
 | --- | --- |
@@ -67,7 +70,7 @@ Run passive stress under normal host activity:
 scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes
 ```
 
-On a fresh Debian/Ubuntu validation host, `./test.sh --yes` can bootstrap
+On a fresh Debian 13 validation host, `./test.sh --yes` can bootstrap
 dependencies, install the pinned Go toolchain under the current user if needed,
 run release checks, run smoke/stress, and validate direct `.deb` plus local APT
 repository package installation. Use `./test.sh --quick --yes` for a shorter
@@ -149,7 +152,7 @@ sudo /var/lib/tracejutsu-stress-.../tracejutsu-stress \
   > rg-container-metadata-sample.log
 ```
 
-After transient smoke/stress pass on a fresh Debian or Ubuntu target, copy the
+After transient smoke/stress pass on a fresh Debian 13 target, copy the
 release `.deb` and matching `.deb.sha256` to the host, then validate the actual
 Debian package lifecycle:
 
@@ -171,8 +174,7 @@ Use `--apt-trusted` only for local unsigned test repositories:
 scripts/package-install-smoke.sh --apt-repo dist/apt-repo --apt-trusted --version 0.1.0 --duration 10m --yes
 ```
 
-On Fedora/RHEL-compatible targets where an RPM is being evaluated, run the RPM
-lifecycle helper instead:
+RPM smoke tests are experimental and not validated for the `v0.1.0` release:
 
 ```sh
 scripts/rpm-install-smoke.sh --rpm dist/tracejutsu-0.1.0-1.x86_64.rpm --duration 10m --yes
@@ -195,7 +197,7 @@ scripts/systemd-stress.sh --duration 30m --stats-interval 1m --yes \
 scripts/validation-summary.sh tracejutsu-stress-hostname.log
 
 scripts/validation-bundle.sh \
-  --name ubuntu-24-vps \
+  --name debian-13 \
   rg-host.log \
   rg-release-check.log \
   rg-root-smoke.log \

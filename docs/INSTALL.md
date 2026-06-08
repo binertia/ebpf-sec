@@ -4,6 +4,11 @@ This guide installs the current MVP as a local Linux service. The service stores
 all normalized events and incidents in a local SQLite database and does not call
 any cloud service by default.
 
+> **Release scope:** The `v0.1.0` release is validated and supported for
+> **Debian 13 (trixie) amd64** only. The instructions below reflect that target.
+> RPM builds, Fedora/RHEL smoke tests, and Ubuntu-specific paths are retained
+> for experimentation but are not validated for this release.
+
 ## Build
 
 The module pins `toolchain go1.26.4` because `go1.26.3` has reachable standard
@@ -33,14 +38,15 @@ scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.
 scripts/release-bundle.sh --version v0.1.0 --maintainer "Your Name <you@example.com>" --sign
 ```
 
-When `rpmbuild` is available, an experimental RPM can also be built:
+When `rpmbuild` is available, an experimental RPM can also be built. This is
+not validated for the `v0.1.0` release:
 
 ```sh
 scripts/build-rpm.sh --version v0.1.0 --packager "Your Name <you@example.com>" --license "LicenseRef-Private"
 ```
 
-On a fresh Fedora/RHEL-compatible validation host, test the RPM package
-lifecycle before using the RPM on a personal machine or production host:
+On a fresh Fedora/RHEL-compatible host, test the RPM lifecycle before using it.
+This path is experimental and not validated for the `v0.1.0` release:
 
 ```sh
 scripts/rpm-install-smoke.sh --rpm dist/tracejutsu-0.1.0-1.x86_64.rpm --duration 10m --yes
@@ -87,7 +93,7 @@ The package installs `/usr/bin/tracejutsu` and
 `/lib/systemd/system/tracejutsu.service`, but does not enable or start the
 service automatically.
 
-On a fresh Debian/Ubuntu validation host, test the full package lifecycle before
+On a fresh Debian 13 validation host, test the full package lifecycle before
 using the package on a personal machine or production host:
 
 ```sh

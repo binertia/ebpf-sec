@@ -3,6 +3,12 @@
 Tracejutsu is a local-first runtime security analyst using eBPF event
 compression and local LLM reasoning.
 
+> **Release scope:** The current `v0.1.0` release is validated and supported for
+> **Debian 13 (trixie) amd64** only. The code may run on other Linux
+> distributions, but they are not validated for this release. See
+> [`dist/v0.1.0/RELEASE_NOTES.md`](dist/v0.1.0/RELEASE_NOTES.md) for the
+> full validation summary.
+
 The current skeleton runs without root and exercises a fake-event pipeline:
 
 ```sh
